@@ -1,0 +1,15 @@
+{
+  "checks": [
+    "Text and photo story, mood, reaction, typed reply, filter",
+    "Quiz scoring, single daily challenge reward, 10-heart affection reward",
+    "Pet care, inventory consumption, shop purchase, coins, species, name and zodiac",
+    "Add and select a sample favorite place, battery details",
+    "Heart-rain surprise preview and session history",
+    "Theme change, privacy and notification controls, profile update and date validation",
+    "Edit meeting date and mark notifications as read",
+    "All mobile navigation destinations, settings, dialog layout and overflow checks",
+    "No browser runtime errors"
+  ],
+  "errors": [],
+  "passed": true
+}

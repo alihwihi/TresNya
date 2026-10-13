@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "TresNya",
+    "slug": "tresnya",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "web": {
+      "name": "TresNya — Alih & Nana",
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Pilih foto untuk cerita kecil kalian.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
+    ]
+  }
+}
