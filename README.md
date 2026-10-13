@@ -27,6 +27,8 @@ npm run build
 
 The build exports the web application into `dist/`.
 
+For Vercel web hosting, the root `vercel.json` sets the build command to `npm run build` and the output directory to `dist`. Set the Vercel project Root Directory to the folder containing `package.json` and `vercel.json`, then deploy the commit containing those files. This publishes the web interface only: the current SQLite-backed Node server is not deployed as Vercel Functions. Login and shared activity require the planned PostgreSQL/API migration or a separately hosted compatible backend; adding `DATABASE_URL` alone does not perform that migration.
+
 Run `npm run preview` to serve the production build at http://localhost:4173.
 
 ## Included flows
