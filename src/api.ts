@@ -12,6 +12,10 @@ export async function activityRequest(route: string, data?: object) {
     headers: data ? { "Content-Type": "application/json" } : undefined,
     body: data ? JSON.stringify(data) : undefined,
   });
+  if (!response.headers.get("content-type")?.includes("application/json"))
+    throw new Error(
+      "Layanan aktivitas belum tersedia. Pemilik aplikasi perlu memeriksa deployment API.",
+    );
   const payload = await response.json();
   if (!response.ok)
     throw new Error(payload.error || "Belum berhasil. Coba lagi.");

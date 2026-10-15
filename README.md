@@ -27,7 +27,7 @@ npm run build
 
 The build exports the web application into `dist/`.
 
-For Vercel web hosting, the root `vercel.json` sets the build command to `npm run build` and the output directory to `dist`. Set the Vercel project Root Directory to the folder containing `package.json` and `vercel.json`, then deploy the commit containing those files. This publishes the web interface only: the current SQLite-backed Node server is not deployed as Vercel Functions. Login and shared activity require the planned PostgreSQL/API migration or a separately hosted compatible backend; adding `DATABASE_URL` alone does not perform that migration.
+For Vercel hosting, follow [VERCEL_SETUP.md](VERCEL_SETUP.md). The root `vercel.json` builds `dist/` and routes authentication/activity requests to `api/index.js`, backed by Neon PostgreSQL. Set the Root Directory to the folder containing `package.json` and `vercel.json`. Publish this backend code along with the UI and configure the required server environment variables. Local `npm run server` continues to use SQLite; it does not use `DATABASE_URL` or copy local data into Neon.
 
 Run `npm run preview` to serve the production build at http://localhost:4173.
 
@@ -44,7 +44,7 @@ Run `npm run preview` to serve the production build at http://localhost:4173.
 
 ## Demo feature boundary
 
-Accounts, sessions, location check-ins, status updates, and notification subscriptions persist in SQLite. Location is captured only when its owner chooses **Ambil lokasi saya**, and shared only after **Bagikan titik ini ke pasangan**. GPS accuracy is shown rather than claiming a precise venue. This is check-in history, not background/live tracking. Removing your locations deletes your server-side check-in history; the partner screen refreshes within 10 seconds. Status updates are a separate real flow from the demo **Cerita kita** posts.
+Accounts, sessions, location check-ins, status updates, and notification subscriptions persist in SQLite locally or PostgreSQL on Vercel. Location is captured only when its owner chooses **Ambil lokasi saya**, and shared only after **Bagikan titik ini ke pasangan**. GPS accuracy is shown rather than claiming a precise venue. This is check-in history, not background/live tracking. Removing your locations deletes your server-side check-in history; the partner screen refreshes within 10 seconds. Status updates are a separate real flow from the demo **Cerita kita** posts.
 
 Other activities (stories/photos, games, pets, battery, arrivals, surprises) remain fictional fixtures or in-memory state. Background tracking, geofences, photo uploads, payments, device locking, password recovery, and native push are not implemented.
 
@@ -52,7 +52,7 @@ Other activities (stories/photos, games, pets, battery, arrivals, surprises) rem
 
 Google Maps pin links work without an API key. For an interactive map inside the app, enable the **Maps Embed API** in Google Cloud and set `TRESNYA_GOOGLE_MAPS_EMBED_KEY`. Restrict this browser-visible key to Maps Embed API and your website's HTTP referrers. Never use a server secret as this key. Without it, the app displays shared coordinates and an **Open in Google Maps** button.
 
-For two phones, deploy the Node 24 server behind an HTTPS reverse proxy using a persistent data directory. Set these environment variables in the hosting service (or PowerShell before starting the server):
+For Vercel and Neon, use [VERCEL_SETUP.md](VERCEL_SETUP.md). Alternatively, deploy the standalone Node 24 server behind an HTTPS reverse proxy using a persistent data directory. For that standalone SQLite deployment, set these environment variables in the hosting service (or PowerShell before starting the server):
 
 ```powershell
 $env:TRESNYA_ALLOWED_ORIGINS = 'https://your-real-domain.example'
@@ -101,3 +101,5 @@ TypeScript and production web export are checked locally. Browser checks cover d
 Dependency audit: npm still reports 35 advisories in the Expo/React Native dependency tree after compatible fixes (12 moderate, 23 high). The UI is not a production deployment. Major SDK changes and forced dependency replacements were not applied.
 
 `node scripts/activity-check.cjs` uses an isolated database and mocked push transport to verify two-account sharing, validation, persistence, deletion, idempotency, private recipient-only notifications, retries, expired subscriptions, logout and endpoint validation. `node scripts/activity-browser-check.cjs` starts an isolated server on port 4186 and checks desktop/mobile GPS consent, Maps links, partner status synchronization, reloads, location removal, denied permission, configuration messaging and PWA assets. No real phone or push-provider delivery is claimed by these checks.
+
+`node scripts/postgres-check.cjs` executes the serverless API SQL against isolated embedded PostgreSQL (PGlite), including bootstrap rollback, session persistence across API instances, rate limits, check-in ownership, status idempotency, push retries and logout revocation. It mocks push delivery and does not verify Neon network/TLS, the `pg` connection pool, distributed locking across real serverless instances, or deployed Vercel routing. The deployment verification steps in VERCEL_SETUP.md are still required.

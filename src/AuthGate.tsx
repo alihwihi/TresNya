@@ -27,7 +27,18 @@ async function request(route: string, data?: object) {
     credentials: "include",
     headers: data ? { "Content-Type": "application/json" } : undefined,
     body: data ? JSON.stringify(data) : undefined,
+  }).catch(() => {
+    throw new Error(
+      "Server belum dapat dihubungi. Periksa koneksi internet lalu coba lagi.",
+    );
   });
+  if (!response.headers.get("content-type")?.includes("application/json")) {
+    throw new Error(
+      response.status === 404
+        ? "Server login belum tersedia. Pemilik aplikasi perlu deploy API ke Vercel bersama kode terbaru."
+        : "Server tidak memberikan respons yang valid. Coba lagi atau periksa log deployment.",
+    );
+  }
   const payload = await response.json();
   return { response, payload };
 }
@@ -50,11 +61,13 @@ export function AuthGate({
         setAccount(payload.user);
         setError("");
       } else if (response.status === 401) setAccount(null);
-      else throw new Error();
-    } catch {
+      else throw new Error(payload.error || "Server belum siap. Coba lagi.");
+    } catch (cause) {
       setAccount(null);
       setError(
-        "Server belum terhubung. Jalankan npm.cmd run server, lalu coba lagi.",
+        cause instanceof Error
+          ? cause.message
+          : "Server belum dapat dihubungi. Coba lagi.",
       );
     } finally {
       setLoading(false);
@@ -84,9 +97,11 @@ export function AuthGate({
         setPassword("");
         setAccount(payload.user);
       }
-    } catch {
+    } catch (cause) {
       setError(
-        "Server belum terhubung. Jalankan npm.cmd run server, lalu coba lagi.",
+        cause instanceof Error
+          ? cause.message
+          : "Server belum dapat dihubungi. Coba lagi.",
       );
     } finally {
       setBusy(false);
@@ -173,7 +188,7 @@ export function AuthGate({
           {!!error && (
             <View accessibilityRole="alert" style={{ marginTop: 18, gap: 12 }}>
               <Body style={{ color: "#a64d50" }}>{error}</Body>
-              {error.includes("Server") && (
+              {!!error && (
                 <Button secondary onPress={check}>
                   Coba hubungkan lagi
                 </Button>

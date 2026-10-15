@@ -3,5 +3,19 @@
   "framework": null,
   "installCommand": "npm ci --include=dev",
   "buildCommand": "npm run build",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "functions": {
+    "api/index.js": { "maxDuration": 60 }
+  },
+  "rewrites": [
+    {
+      "source": "/api/auth/:action",
+      "destination": "/api/index?route=auth/:action"
+    },
+    {
+      "source": "/api/activity/:path*",
+      "destination": "/api/index?route=activity/:path*"
+    },
+    { "source": "/api/jobs/push", "destination": "/api/index?route=jobs/push" }
+  ]
 }
