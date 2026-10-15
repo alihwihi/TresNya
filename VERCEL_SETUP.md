@@ -21,8 +21,8 @@ Open **Vercel → your TresNya project → Settings → Environment Variables �
 | Name                            | Value                                                                                            |
 | ------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `DATABASE_URL`                  | The pooled connection string copied from Neon's **production** branch                            |
-| `TRESNYA_ALIH_INITIAL_PASSWORD` | A unique password you choose for `alih`, 16–256 characters                                       |
-| `TRESNYA_NANA_INITIAL_PASSWORD` | A different password you choose for `nana`, 16–256 characters                                    |
+| `TRESNYA_ALIH_INITIAL_PASSWORD` | A unique password you choose for `alih`, 8–256 characters                                        |
+| `TRESNYA_NANA_INITIAL_PASSWORD` | A different password you choose for `nana`, 8–256 characters                                     |
 | `TRESNYA_ALLOWED_ORIGINS`       | `https://tresnya.vercel.app` (use your actual production domain if different; no trailing slash) |
 
 Save both account passwords in your password manager. These are app login passwords, separate from the Neon database password. The API stores salted password hashes. Initial-password variables create missing accounts only: editing them later does **not** reset an existing password. There is currently no password-reset flow. After successful setup, these two bootstrap variables can be removed from future deployments; retain your own saved copies.
@@ -62,7 +62,7 @@ Changing environment variables affects new deployments; it does not update an al
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `404 NOT_FOUND` or an HTML page at `/api/auth/me` | The deployed commit includes `api/index.js` and `vercel.json`; the project Root Directory is correct                                                          |
 | `DATABASE_URL belum diatur`                       | The variable exists for **Production** and a new deployment was created after saving                                                                          |
-| `Akun belum disiapkan`                            | Both initial-password variables exist and each is 16–256 characters                                                                                           |
+| `Akun belum disiapkan`                            | Both initial-password variables exist and each is 8–256 characters                                                                                            |
 | `Database belum terhubung`                        | The URL is complete, matches the correct Neon branch/role/database, and the role can create tables; inspect Vercel function logs for the error code           |
 | `Origin tidak diizinkan` when signing in          | `TRESNYA_ALLOWED_ORIGINS` matches the exact website origin, then redeploy                                                                                     |
 | Wrong password                                    | Use the initial app password used when the account was first created, not the Neon password; changing a bootstrap variable does not reset an existing account |

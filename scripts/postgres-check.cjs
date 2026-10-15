@@ -23,8 +23,8 @@ const { schema } = require("../server/postgres-schema.cjs");
     TRESNYA_PUSH_SUBJECT: "mailto:test@example.com",
   };
   const passwords = {
-    alih: randomBytes(24).toString("base64url"),
-    nana: randomBytes(24).toString("base64url"),
+    alih: randomBytes(6).toString("base64url"),
+    nana: randomBytes(6).toString("base64url"),
   };
   let failCode = 0;
   const deliveries = [];
@@ -66,6 +66,26 @@ const { schema } = require("../server/postgres-schema.cjs");
     );
     env.TRESNYA_ALIH_INITIAL_PASSWORD = passwords.alih;
     env.TRESNYA_NANA_INITIAL_PASSWORD = passwords.nana;
+    for (const name of [
+      "TRESNYA_ALIH_INITIAL_PASSWORD",
+      "TRESNYA_NANA_INITIAL_PASSWORD",
+    ]) {
+      const validPassword = env[name];
+      assert.equal(validPassword.length, 8);
+      for (const invalid of [validPassword.slice(0, 7), "x".repeat(257)]) {
+        env[name] = invalid;
+        const response = await call("auth/me");
+        assert.equal(response.status, 503);
+        assert.match((await response.json()).error, /8–256 karakter/);
+        assert.equal(
+          (await db.query("SELECT to_regclass('tresnya.accounts') AS name"))
+            .rows[0].name,
+          null,
+          "invalid password rolls back both accounts",
+        );
+      }
+      env[name] = validPassword;
+    }
     assert.equal((await call("auth/me")).status, 401);
     const keys = await api.initialize();
     assert.equal(await count("accounts"), 2);

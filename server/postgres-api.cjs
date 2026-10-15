@@ -77,9 +77,9 @@ function createPostgresApi({
             if (exists.rows.length) continue;
             const password =
               env[`TRESNYA_${profile.username.toUpperCase()}_INITIAL_PASSWORD`];
-            if (!password || password.length < 16 || password.length > 256)
+            if (!password || password.length < 8 || password.length > 256)
               throw new SetupError(
-                "Akun belum disiapkan. Pemilik aplikasi perlu mengatur TRESNYA_ALIH_INITIAL_PASSWORD dan TRESNYA_NANA_INITIAL_PASSWORD (minimal 16 karakter) di Vercel, lalu deploy ulang.",
+                "Akun belum disiapkan. Pemilik aplikasi perlu mengatur TRESNYA_ALIH_INITIAL_PASSWORD dan TRESNYA_NANA_INITIAL_PASSWORD (8–256 karakter) di Vercel, lalu deploy ulang.",
               );
             const salt = randomBytes(16).toString("hex");
             const hash = (await derive(password, salt, 64)).toString("hex");
