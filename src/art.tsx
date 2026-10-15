@@ -32,8 +32,10 @@ export type IconName =
   | "moon"
   | "coffee"
   | "gift"
-  | "chevron";
+  | "chevron"
+  | "pencil";
 const paths: Record<IconName, string> = {
+  pencil: "m16 3 5 5M3 21l5-1L21 7a2.1 2.1 0 0 0-5-5L3 15ZM3 15l5 5",
   home: "M3 10 12 3l9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z",
   pin: "M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0ZM12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6",
   heart:
@@ -309,7 +311,11 @@ export function MapArt({ large = false }: { large?: boolean }) {
         <Path d="M0 59 700 323M0 294 700 44M156 0l113 400M497 0 386 400M50 0l90 400M620 0 585 400M0 220l700 50" />
       </G>
       <Path
-        d={large ? "M193 133c113 7 112 119 290 105" : "M193 133c113 7 112 65 290 55"}
+        d={
+          large
+            ? "M193 133c113 7 112 119 290 105"
+            : "M193 133c113 7 112 65 290 55"
+        }
         stroke="#b47779"
         strokeWidth="3"
         strokeDasharray="6 7"
@@ -324,7 +330,13 @@ export function MapArt({ large = false }: { large?: boolean }) {
         stroke="white"
         strokeWidth="4"
       />
-      <Circle cx="483" cy={large ? 238 : 188} r="32" fill="#bc8588" opacity=".2" />
+      <Circle
+        cx="483"
+        cy={large ? 238 : 188}
+        r="32"
+        fill="#bc8588"
+        opacity=".2"
+      />
       <Circle
         cx="483"
         cy={large ? 238 : 188}

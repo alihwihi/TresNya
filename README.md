@@ -48,6 +48,8 @@ Accounts, sessions, location check-ins, status updates, and notification subscri
 
 Other activities (stories/photos, games, pets, battery, arrivals, surprises) remain fictional fixtures or in-memory state. Background tracking, geofences, photo uploads, payments, device locking, password recovery, and native push are not implemented.
 
+Your selected profile photo now also appears in the sidebar couple badge. Click either sidebar quote with its pencil icon, or use the separate pencil buttons under **Pengaturan → Kata-kata untuk ruang kita**, to open that quote's own editor. Save and **Gunakan kutipan awal** affect only the selected quote; closing cancels its edits. Profile photos (PNG/JPEG/WebP/GIF, up to about 2 MB) and these quotes persist per account in this browser's local storage. They are not uploaded or synchronized to the partner's phone, and clearing browser data removes them. Native builds retain these changes only for the current session.
+
 ## Phone notifications and Google Maps setup
 
 Google Maps pin links work without an API key. For an interactive map inside the app, enable the **Maps Embed API** in Google Cloud and set `TRESNYA_GOOGLE_MAPS_EMBED_KEY`. Restrict this browser-visible key to Maps Embed API and your website's HTTP referrers. Never use a server secret as this key. Without it, the app displays shared coordinates and an **Open in Google Maps** button.

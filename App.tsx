@@ -1,5 +1,11 @@
 import { AuthGate, Account } from "./src/AuthGate";
 import {
+  defaultQuotes,
+  Personalization,
+  readPersonalization,
+  savePersonalization,
+} from "./src/personalization";
+import {
   LocationScreen,
   NotificationSettings,
   PartnerMap,
@@ -70,6 +76,8 @@ type Dialog =
   | "adopt"
   | "place"
   | "profile"
+  | "badgeQuote"
+  | "sidebarQuote"
   | "auth";
 const moods = ["🥰", "😊", "☕", "😴", "🥺", "🤍"];
 
@@ -116,7 +124,12 @@ function TresNyaSession({
   const [meeting, setMeeting] = useState("2026-10-24");
   const [draftDate, setDraftDate] = useState(meeting);
   const [draftAnniversary, setDraftAnniversary] = useState(anniversary);
-  const [profilePhoto, setProfilePhoto] = useState<string>();
+  const [personalization, setPersonalization] = useState(() =>
+    readPersonalization(account.username),
+  );
+  const { profilePhoto, badgeQuote, sidebarQuote } = personalization;
+  const [draftBadgeQuote, setDraftBadgeQuote] = useState(badgeQuote);
+  const [draftSidebarQuote, setDraftSidebarQuote] = useState(sidebarQuote);
   const [stories, setStories] = useState(initialStories);
   const [storyText, setStoryText] = useState("");
   const [mood, setMood] = useState("🥰");
@@ -235,14 +248,50 @@ function TresNyaSession({
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         quality: 0.8,
+        base64: profile,
       });
       if (!result.canceled) {
-        if (profile) setProfilePhoto(result.assets[0].uri);
-        else setPhoto(result.assets[0].uri);
+        const asset = result.assets[0];
+        if (profile) {
+          const uri =
+            Platform.OS === "web" && asset.base64
+              ? `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`
+              : asset.uri;
+          if (
+            Platform.OS === "web" &&
+            !/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(uri)
+          ) {
+            notify("Pilih foto PNG, JPEG, WebP, atau GIF.");
+            return;
+          }
+          if (uri.length > 2_800_000) {
+            notify("Foto terlalu besar. Pilih foto berukuran maksimal 2 MB.");
+            return;
+          }
+          if (updatePersonalization({ ...personalization, profilePhoto: uri }))
+            notify("Foto profil diperbarui di seluruh tampilan.");
+        } else setPhoto(asset.uri);
       }
     } catch {
       notify("Foto belum bisa dibuka. Coba pilih kembali.");
     }
+  }
+  function updatePersonalization(next: Personalization) {
+    try {
+      savePersonalization(account.username, next);
+      setPersonalization(next);
+      return true;
+    } catch {
+      notify(
+        "Belum tersimpan. Penyimpanan browser penuh atau tidak tersedia; coba foto yang lebih kecil atau izinkan penyimpanan.",
+      );
+      return false;
+    }
+  }
+  function openQuote(which: "badgeQuote" | "sidebarQuote") {
+    if (which === "badgeQuote") setDraftBadgeQuote(badgeQuote);
+    else setDraftSidebarQuote(sidebarQuote);
+    setDialog(which);
   }
   function publishStory() {
     if (!storyText.trim() && !photo) {
@@ -337,6 +386,7 @@ function TresNyaSession({
   const MyAvatar = ({ size = 42 }: { size?: number }) =>
     profilePhoto ? (
       <Image
+        accessibilityLabel={`Foto profil ${name}`}
         source={{ uri: profilePhoto }}
         style={{ width: size, height: size, borderRadius: size / 2 }}
       />
@@ -1260,6 +1310,38 @@ function TresNyaSession({
               >
                 Ganti foto kamu
               </Button>
+              <Body style={{ fontSize: 11, marginTop: 12 }}>
+                Foto tersimpan untuk akunmu di browser ini.
+              </Body>
+            </Card>
+            <Card>
+              <SectionHead title="Kata-kata untuk ruang kita" />
+              <View style={[s.between, { marginBottom: 8 }]}>
+                <Label>Kutipan profil</Label>
+                <IconButton
+                  name="pencil"
+                  label="Edit kutipan profil"
+                  onPress={() => openQuote("badgeQuote")}
+                />
+              </View>
+              <Body>{badgeQuote}</Body>
+              <View style={s.divider} />
+              <View style={[s.between, { marginBottom: 8 }]}>
+                <Label>Kutipan kartu hati</Label>
+                <IconButton
+                  name="pencil"
+                  label="Edit kutipan kartu hati"
+                  onPress={() => openQuote("sidebarQuote")}
+                />
+              </View>
+              <Text
+                style={[styles.noteText, { marginTop: 0, textAlign: "left" }]}
+              >
+                {sidebarQuote}
+              </Text>
+              <Body style={{ fontSize: 11, marginTop: 12 }}>
+                Kutipan tersimpan untuk akunmu di browser ini.
+              </Body>
             </Card>
             <Card>
               <SectionHead title="Izin & kenyamanan" />
@@ -1416,10 +1498,70 @@ function TresNyaSession({
     adopt: "Kenalan dengan si kecil.",
     place: "Simpan tempat yang berarti.",
     profile: "Ini cerita tentang kita.",
+    badgeQuote: "Edit kutipan profil",
+    sidebarQuote: "Edit kutipan kartu hati",
     auth: "Akun TresNya",
   };
   function renderDialog() {
     switch (dialog) {
+      case "badgeQuote":
+      case "sidebarQuote": {
+        const isBadge = dialog === "badgeQuote";
+        const quoteKey = dialog;
+        const limit = isBadge ? 80 : 200;
+        const draft = isBadge ? draftBadgeQuote : draftSidebarQuote;
+        const setDraft = isBadge ? setDraftBadgeQuote : setDraftSidebarQuote;
+        return (
+          <>
+            <Body style={{ marginBottom: 20 }}>
+              {isBadge
+                ? "Tulisan kecil di bawah nama kalian."
+                : "Pesan hangat pada kartu hati di menu samping."}
+            </Body>
+            <Field
+              label={
+                isBadge
+                  ? "Kutipan profil (maks. 80 karakter)"
+                  : "Kutipan kartu hati (maks. 200 karakter)"
+              }
+              value={draft}
+              onChangeText={setDraft}
+              multiline={!isBadge}
+            />
+            <View style={{ gap: 12 }}>
+              <Button
+                onPress={() => {
+                  const quote = draft.trim();
+                  if (!quote || quote.length > limit) {
+                    setError(`Isi kutipan, maksimal ${limit} karakter.`);
+                    return;
+                  }
+                  if (
+                    updatePersonalization({
+                      ...personalization,
+                      [quoteKey]: quote,
+                    })
+                  ) {
+                    setDialog(null);
+                    notify("Kutipan diperbarui.");
+                  }
+                }}
+              >
+                Simpan kutipan
+              </Button>
+              <Button
+                secondary
+                onPress={() => {
+                  setDraft(defaultQuotes[quoteKey]);
+                  setError("");
+                }}
+              >
+                Gunakan kutipan awal
+              </Button>
+            </View>
+          </>
+        );
+      }
       case "compose":
         return (
           <>
@@ -1836,9 +1978,17 @@ function TresNyaSession({
                 <Text style={styles.brandSub}>CERITA TENTANG KITA</Text>
               </View>
             </Pressable>
-            <View style={styles.coupleBadge}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit kutipan profil"
+              onPress={() => openQuote("badgeQuote")}
+              style={styles.coupleBadge}
+            >
+              <View style={styles.quotePencil} pointerEvents="none">
+                <Icon name="pencil" size={13} color={accent} />
+              </View>
               <View style={s.row}>
-                <Avatar girl={account.gender === "female"} size={34} />
+                <MyAvatar size={34} />
                 <View
                   style={{
                     marginLeft: -21,
@@ -1849,18 +1999,19 @@ function TresNyaSession({
                 >
                   <Avatar girl={account.gender === "male"} size={34} />
                 </View>
-                <View>
+                <View style={{ flex: 1, minWidth: 0 }}>
                   <Label style={{ fontSize: 12 }}>
                     {name} & {partner}
                   </Label>
                   <Text
+                    numberOfLines={2}
                     style={{ color: "#a69a8f", fontSize: 10, marginTop: 4 }}
                   >
-                    Ruang kecil, milik kita
+                    {badgeQuote}
                   </Text>
                 </View>
               </View>
-            </View>
+            </Pressable>
             <Text style={styles.navLabel}>RUANG KITA</Text>
             <View style={{ gap: 8 }}>
               {nav.map((n) => (
@@ -1900,12 +2051,18 @@ function TresNyaSession({
               ))}
             </View>
             <View style={{ flex: 1, minHeight: 28 }} />
-            <View style={styles.sidebarNote}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit kutipan kartu hati"
+              onPress={() => openQuote("sidebarQuote")}
+              style={styles.sidebarNote}
+            >
+              <View style={styles.quotePencil} pointerEvents="none">
+                <Icon name="pencil" size={15} color={accent} />
+              </View>
               <Icon name="heart" size={23} color="#b79b90" />
-              <Text style={styles.noteText}>
-                Dua kota, satu cerita.
-                <BrText />
-                Selalu ada kita.
+              <Text style={styles.noteText} numberOfLines={5}>
+                {sidebarQuote}
               </Text>
               <View
                 style={{
@@ -1915,7 +2072,7 @@ function TresNyaSession({
                   marginTop: 10,
                 }}
               />
-            </View>
+            </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ selected: screen === "settings" }}
@@ -2280,6 +2437,7 @@ const styles = StyleSheet.create({
   },
   coupleBadge: {
     padding: 12,
+    paddingRight: 25,
     borderRadius: 12,
     backgroundColor: "#f5f0e9",
     marginTop: 35,
@@ -2306,6 +2464,11 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: "#b8c19c",
     marginLeft: "auto",
+  },
+  quotePencil: {
+    position: "absolute",
+    right: 7,
+    top: 7,
   },
   sidebarNote: {
     borderWidth: 1,
