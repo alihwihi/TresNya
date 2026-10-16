@@ -31,5 +31,12 @@ CREATE TABLE IF NOT EXISTS tresnya.push_queue (
   UNIQUE(status_id,endpoint)
 );
 CREATE TABLE IF NOT EXISTS tresnya.app_settings (key TEXT PRIMARY KEY,value JSONB NOT NULL);
+CREATE TABLE IF NOT EXISTS tresnya.live_locations (
+  username TEXT PRIMARY KEY REFERENCES tresnya.accounts(username),
+  session_hash TEXT NOT NULL REFERENCES tresnya.sessions(token_hash) ON DELETE CASCADE,
+  share_id TEXT NOT NULL,started DOUBLE PRECISION NOT NULL,expires DOUBLE PRECISION NOT NULL,
+  sequence INTEGER NOT NULL,photo TEXT,latitude DOUBLE PRECISION,longitude DOUBLE PRECISION,
+  accuracy DOUBLE PRECISION,captured DOUBLE PRECISION,updated DOUBLE PRECISION
+);
 `;
 module.exports = { schema };

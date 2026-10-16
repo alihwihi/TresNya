@@ -89,7 +89,7 @@ async function createAuth(directory, options = {}) {
     let input = "";
     for await (const chunk of req) {
       input += chunk;
-      if (Buffer.byteLength(input) > 8192) throw new Error("body-too-large");
+      if (Buffer.byteLength(input) > 65536) throw new Error("body-too-large");
     }
     return JSON.parse(input);
   }

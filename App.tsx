@@ -1,4 +1,5 @@
 import { AuthGate, Account } from "./src/AuthGate";
+import { useLiveLocation } from "./src/useLiveLocation";
 import {
   defaultQuotes,
   Personalization,
@@ -128,6 +129,7 @@ function TresNyaSession({
     readPersonalization(account.username),
   );
   const { profilePhoto, badgeQuote, sidebarQuote } = personalization;
+  const live = useLiveLocation(account, profilePhoto);
   const [draftBadgeQuote, setDraftBadgeQuote] = useState(badgeQuote);
   const [draftSidebarQuote, setDraftSidebarQuote] = useState(sidebarQuote);
   const [stories, setStories] = useState(initialStories);
@@ -828,7 +830,7 @@ function TresNyaSession({
   }
 
   function Location() {
-    return <LocationScreen account={account} activity={activity} />;
+    return <LocationScreen account={account} activity={activity} live={live} />;
   }
 
   function Stories() {

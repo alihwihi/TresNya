@@ -44,13 +44,15 @@ Run `npm run preview` to serve the production build at http://localhost:4173.
 
 ## Demo feature boundary
 
-Accounts, sessions, location check-ins, status updates, and notification subscriptions persist in SQLite locally or PostgreSQL on Vercel. Location is captured only when its owner chooses **Ambil lokasi saya**, and shared only after **Bagikan titik ini ke pasangan**. GPS accuracy is shown rather than claiming a precise venue. This is check-in history, not background/live tracking. Removing your locations deletes your server-side check-in history; the partner screen refreshes within 10 seconds. Status updates are a separate real flow from the demo **Cerita kita** posts.
+Accounts, sessions, location check-ins, status updates, and notification subscriptions persist in SQLite locally or PostgreSQL on Vercel. For manual check-ins, location is captured with **Ambil lokasi saya**, then shared with **Bagikan titik ini ke pasangan**. GPS accuracy is shown rather than claiming a precise venue. These check-ins are separate from opt-in foreground live sharing, described below. Removing your locations deletes your server-side check-in history and revokes live sharing; the check-in list refreshes within 10 seconds. Status updates are a separate real flow from the demo **Cerita kita** posts.
 
-Other activities (stories/photos, games, pets, battery, arrivals, surprises) remain fictional fixtures or in-memory state. Background tracking, geofences, photo uploads, payments, device locking, password recovery, and native push are not implemented.
+Other activities (stories/photos, games, pets, battery, arrivals, surprises) remain fictional fixtures or in-memory state. Background tracking, geofences, story-photo uploads, payments, device locking, password recovery, and native push are not implemented.
 
 Your selected profile photo now also appears in the sidebar couple badge. Click either sidebar quote with its pencil icon, or use the separate pencil buttons under **Pengaturan → Kata-kata untuk ruang kita**, to open that quote's own editor. Save and **Gunakan kutipan awal** affect only the selected quote; closing cancels its edits. Profile photos (PNG/JPEG/WebP/GIF, up to about 2 MB) and these quotes persist per account in this browser's local storage. They are not uploaded or synchronized to the partner's phone, and clearing browser data removes them. Native builds retain these changes only for the current session.
 
 ## Phone notifications and Google Maps setup
+
+For foreground live location, see the live-location section below. That map uses OpenStreetMap and requires no API key; Google Maps links remain available.
 
 Google Maps pin links work without an API key. For an interactive map inside the app, enable the **Maps Embed API** in Google Cloud and set `TRESNYA_GOOGLE_MAPS_EMBED_KEY`. Restrict this browser-visible key to Maps Embed API and your website's HTTP referrers. Never use a server secret as this key. Without it, the app displays shared coordinates and an **Open in Google Maps** button.
 
@@ -105,3 +107,17 @@ Dependency audit: npm still reports 35 advisories in the Expo/React Native depen
 `node scripts/activity-check.cjs` uses an isolated database and mocked push transport to verify two-account sharing, validation, persistence, deletion, idempotency, private recipient-only notifications, retries, expired subscriptions, logout and endpoint validation. `node scripts/activity-browser-check.cjs` starts an isolated server on port 4186 and checks desktop/mobile GPS consent, Maps links, partner status synchronization, reloads, location removal, denied permission, configuration messaging and PWA assets. No real phone or push-provider delivery is claimed by these checks.
 
 `node scripts/postgres-check.cjs` executes the serverless API SQL against isolated embedded PostgreSQL (PGlite), including bootstrap rollback, session persistence across API instances, rate limits, check-in ownership, status idempotency, push retries and logout revocation. It mocks push delivery and does not verify Neon network/TLS, the `pg` connection pool, distributed locking across real serverless instances, or deployed Vercel routing. The deployment verification steps in VERCEL_SETUP.md are still required.
+
+## Foreground live location
+
+Open **Lokasi & kabar → Mulai berbagi lokasi live** and grant location permission. This explicitly shares changing coordinates and a small snapshot of your profile photo with the signed-in partner. The full local photo and quotes remain on this browser; the live thumbnail is the exception. With no chosen photo the marker uses your initial. Change your photo before starting a share to use it as the marker. Both accounts can share simultaneously. The Leaflet map uses OpenStreetMap tiles with attribution, accuracy circles, moving avatar markers, an optional follow mode, and Google Maps links. No extra API key is required for the live map.
+
+The client watches GPS and sends at most one update every three seconds, with a fresh stationary fix requested every 15 seconds. Viewers poll the lightweight live endpoint every three seconds; latency also depends on GPS/network conditions. Elapsed time is based on the actual GPS fix; fixes older than 15 seconds are labeled as last-known positions.
+
+Sharing stops on Stop, logout, hiding/closing the page, loss of the server lease, or after one hour. Returning to the page or reloading never starts tracking automatically. Keep the browser foreground and phone unlocked; native background/locked-screen tracking is not implemented. Browser/OS permission is required on HTTPS or localhost.
+
+SQLite and PostgreSQL store only the latest live position and a thumbnail in a session-scoped lease, separate from saved check-in history. Stop removes the row; late updates cannot recreate it. A share expires 45 seconds after the last accepted update, and viewers hide expired points even when polling fails. Expired rows are cleaned on the next live-state request. A new share on another device replaces the old one for that account. Logout or deleting shared locations also revokes live sharing. No push notifications are sent on each movement update.
+
+The map fetches visible tiles from OpenStreetMap, so an internet connection is still needed locally. Follow the [tile usage policy](https://operations.osmfoundation.org/policies/tiles/) and retain attribution; use an appropriate tile service before expanding to substantial traffic. This app does not prefetch tiles or implement an offline tile cache.
+
+Verification: `node scripts/live-location-check.cjs` exercises both storage backends using isolated SQLite and embedded PostgreSQL. After `npm run build`, `node scripts/live-location-browser-check.cjs` checks two accounts, simulated movement and avatar markers, stop, denied permission, hidden-page stop, reload, and mobile layout. These tests do not verify real phone GPS, background tracking or a live Neon/Vercel deployment. References: [watchPosition](https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/watchPosition), [Leaflet](https://leafletjs.com/reference).

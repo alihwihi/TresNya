@@ -3,6 +3,8 @@ import { Linking, Platform, View } from "react-native";
 import { Account } from "./AuthGate";
 import { activityRequest } from "./api";
 import { Badge, Body, Button, Card, Field, Label, Title } from "./ui";
+import { LiveLocation } from "./useLiveLocation";
+import { LiveLocationCard } from "./LiveLocationCard";
 
 export type Checkin = {
   id: number;
@@ -253,9 +255,11 @@ export function PartnerMap({
 export function LocationScreen({
   account,
   activity,
+  live,
 }: {
   account: Account;
   activity: Activity;
+  live: LiveLocation;
 }) {
   const [text, setText] = useState("");
   const [label, setLabel] = useState("");
@@ -331,8 +335,9 @@ export function LocationScreen({
       <View style={{ gap: 10 }}>
         <Title>Dekat, meski berjarak.</Title>
         <Body>Bagikan tempat dan kabar, saat kamu ingin.</Body>
-        <Badge>Google Maps · check-in dengan izin</Badge>
+        <Badge>Lokasi live & check-in dengan izin</Badge>
       </View>
+      <LiveLocationCard live={live} account={account} />
       {!activity.data && (
         <Card>
           <Body>{activity.error || "Memuat kabar kalian…"}</Body>
@@ -351,7 +356,8 @@ export function LocationScreen({
         <Title style={{ fontSize: 24 }}>Bagikan lokasimu</Title>
         <Body style={{ marginVertical: 12 }}>
           Ambil titik GPS, periksa akurasinya, lalu bagikan ke {account.partner}
-          . Lokasi hanya diambil saat kamu menekan tombol.
+          . Gunakan check-in untuk menyimpan satu titik, atau mode live di atas
+          untuk berbagi selama bergerak.
         </Body>
         <Field
           label="Nama tempat (opsional)"
@@ -400,6 +406,7 @@ export function LocationScreen({
               disabled={!!busy}
               onPress={() => {
                 void run("clear", async () => {
+                  await live.stop();
                   await activityRequest("location/clear", {});
                   setDraft(null);
                   await activity.refresh();

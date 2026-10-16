@@ -76,3 +76,7 @@ With `TRESNYA_PUSH_SUBJECT` configured, sign in on each phone and choose **Lokas
 A status update triggers its first delivery attempt using Vercel's `waitUntil`. Retries are stored in PostgreSQL and processed while the app polls for activity or on later status updates. No always-running background timer or recurring job is deployed. To retry even while both apps are closed, configure a scheduler to call `GET /api/jobs/push` with `Authorization: Bearer <CRON_SECRET>` and add a matching strong `CRON_SECRET` server environment variable. A 1–5 minute schedule is appropriate; verify the scheduler's plan limits before configuring it. Without a scheduler, a failed delivery may remain queued until the next app request and expires after one hour.
 
 Logging out revokes that session's subscriptions. Sessions expire after seven days; sign in and enable/rebind notifications again. Test with two real phones: sending to a mocked push service locally does not verify device delivery.
+
+## 6. Deploy live location
+
+Push the live-location UI and backend files together with the updated dependency lockfile, then deploy. The API creates `tresnya.live_locations` automatically. No additional environment variables are required for the OpenStreetMap live map. Test in two separate signed-in browsers or phones: start sharing explicitly and keep both pages active. The profile thumbnail is shared for that live session. Keep the phone unlocked; tracking stops when the page is hidden or closed. See the foreground live-location section in README.md for expiry and verification details.

@@ -9,6 +9,7 @@ const { promisify } = require("node:util");
 const webPush = require("web-push");
 const { validSubscription } = require("./activity.cjs");
 const { schema } = require("./postgres-schema.cjs");
+const { createLiveLocation } = require("./live-location.cjs");
 const derive = promisify(scrypt);
 const digest = (text) => createHash("sha256").update(text).digest("hex");
 const profiles = [
@@ -38,7 +39,7 @@ async function body(req) {
       let raw = "";
       for await (const chunk of req) {
         raw += chunk;
-        if (Buffer.byteLength(raw) > 8192) throw new Error();
+        if (Buffer.byteLength(raw) > 65536) throw new Error();
       }
       input = JSON.parse(raw);
     } else if (typeof input === "string" || Buffer.isBuffer(input))
@@ -47,7 +48,7 @@ async function body(req) {
       !input ||
       typeof input !== "object" ||
       Array.isArray(input) ||
-      Buffer.byteLength(JSON.stringify(input)) > 8192
+      Buffer.byteLength(JSON.stringify(input)) > 65536
     )
       throw new Error();
     return input;
@@ -62,6 +63,7 @@ function createPostgresApi({
   defer,
 }) {
   let initialization;
+  const live = createLiveLocation(db, "tresnya.");
   async function initialize() {
     if (!initialization)
       initialization = db
@@ -358,6 +360,10 @@ function createPostgresApi({
         return;
       }
       const partner = user.username === "alih" ? "nana" : "alih";
+      if (pathname === "/api/activity/live/state" && req.method === "GET") {
+        send(res, 200, await live.state(user.username));
+        return;
+      }
       if (pathname === "/api/activity/state" && req.method === "GET") {
         const [mine, other, statuses] = await Promise.all([
           db.query(
@@ -386,6 +392,16 @@ function createPostgresApi({
       if (req.method !== "POST")
         throw new ApiError(404, "Endpoint tidak tersedia.");
       const input = await body(req);
+      if (pathname.startsWith("/api/activity/live/")) {
+        const result = await live.handle(
+          pathname.split("/").pop(),
+          input,
+          user.username,
+          sessionHash,
+        );
+        send(res, result.status, result.data);
+        return;
+      }
       if (pathname === "/api/activity/location") {
         const { latitude, longitude, accuracy, captured, label } = input;
         if (
@@ -429,6 +445,9 @@ function createPostgresApi({
         return;
       }
       if (pathname === "/api/activity/location/clear") {
+        await db.query("DELETE FROM tresnya.live_locations WHERE username=$1", [
+          user.username,
+        ]);
         await db.query("DELETE FROM tresnya.checkins WHERE username=$1", [
           user.username,
         ]);

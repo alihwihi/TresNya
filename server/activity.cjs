@@ -1,6 +1,7 @@
 const webPush = require("web-push");
 const fs = require("node:fs");
 const path = require("node:path");
+const { createLiveLocation } = require("./live-location.cjs");
 
 function validSubscription(s) {
   try {
@@ -32,11 +33,26 @@ function createActivity({
   transport = webPush.sendNotification,
 }) {
   db.exec(`
+    CREATE TABLE IF NOT EXISTS live_locations(username TEXT PRIMARY KEY,session_hash TEXT NOT NULL,share_id TEXT NOT NULL,started INTEGER NOT NULL,expires INTEGER NOT NULL,sequence INTEGER NOT NULL,photo TEXT,latitude REAL,longitude REAL,accuracy REAL,captured INTEGER,updated INTEGER);
     CREATE TABLE IF NOT EXISTS checkins(id INTEGER PRIMARY KEY, username TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, accuracy REAL NOT NULL, label TEXT NOT NULL, captured INTEGER NOT NULL, created INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS statuses(id TEXT PRIMARY KEY, username TEXT NOT NULL, text TEXT NOT NULL, created INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS push_devices(endpoint TEXT PRIMARY KEY, username TEXT NOT NULL, session_hash TEXT NOT NULL, subscription TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS push_queue(id INTEGER PRIMARY KEY, status_id TEXT NOT NULL, endpoint TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, next_try INTEGER NOT NULL);
   `);
+  const live = createLiveLocation({
+    async query(sql, values = []) {
+      const args = [];
+      const stmt = db.prepare(
+        sql.replace(/\$(\d+)/g, (_, n) => {
+          args.push(values[Number(n) - 1]);
+          return "?";
+        }),
+      );
+      return /^(SELECT|.*RETURNING)/s.test(sql)
+        ? { rows: stmt.all(...args) }
+        : (stmt.run(...args), { rows: [] });
+    },
+  });
   const keyFile = path.join(directory, "web-push-keys.json");
   if (!fs.existsSync(keyFile))
     fs.writeFileSync(keyFile, JSON.stringify(webPush.generateVAPIDKeys()), {
@@ -121,6 +137,9 @@ function createActivity({
   }, 15000);
   timer.unref();
   function revoke(sessionHash) {
+    db.prepare("DELETE FROM live_locations WHERE session_hash=?").run(
+      sessionHash,
+    );
     db.prepare(
       "DELETE FROM push_queue WHERE endpoint IN (SELECT endpoint FROM push_devices WHERE session_hash=?)",
     ).run(sessionHash);
@@ -135,6 +154,10 @@ function createActivity({
       return true;
     }
     const partner = user.username === "alih" ? "nana" : "alih";
+    if (pathname === "/api/activity/live/state" && req.method === "GET") {
+      send(res, 200, await live.state(user.username));
+      return true;
+    }
     if (pathname === "/api/activity/state" && req.method === "GET") {
       const locations = (username) =>
         db
@@ -166,6 +189,16 @@ function createActivity({
       if (!input || typeof input !== "object") throw new Error();
     } catch {
       send(res, 400, { error: "Permintaan tidak valid." });
+      return true;
+    }
+    if (pathname.startsWith("/api/activity/live/")) {
+      const result = await live.handle(
+        pathname.split("/").pop(),
+        input,
+        user.username,
+        sessionHash,
+      );
+      send(res, result.status, result.data);
       return true;
     }
     if (pathname === "/api/activity/location") {
@@ -205,6 +238,9 @@ function createActivity({
       return true;
     }
     if (pathname === "/api/activity/location/clear") {
+      db.prepare("DELETE FROM live_locations WHERE username=?").run(
+        user.username,
+      );
       db.prepare("DELETE FROM checkins WHERE username=?").run(user.username);
       send(res, 200, { ok: true });
       return true;
