@@ -18,7 +18,7 @@ SQLite stores salted scrypt password hashes and hashed session tokens in `.local
 
 For live UI development, keep `npm.cmd run server` running in one terminal, and run `npm.cmd run web` in another. Open http://localhost:8081. The Expo web UI connects to the same local auth server.
 
-The implemented account, location, and notification flows target mobile/desktop web. Native Android/iOS authentication and native push are not configured. The server binds to loopback by default. Remote phones need the same HTTPS deployment; see setup below.
+Web account/location/push flows remain available. Android now has native login, a native map, and opt-in background location; APK signing, map-key setup, and real-phone verification are described in [ANDROID_SETUP.md](ANDROID_SETUP.md). Native status push and iOS background sharing are not configured. The server binds to loopback by default. Remote phones need the same HTTPS deployment; see setup below.
 
 ```sh
 npm run typecheck
@@ -46,9 +46,9 @@ Run `npm run preview` to serve the production build at http://localhost:4173.
 
 Accounts, sessions, location check-ins, status updates, and notification subscriptions persist in SQLite locally or PostgreSQL on Vercel. For manual check-ins, location is captured with **Ambil lokasi saya**, then shared with **Bagikan titik ini ke pasangan**. GPS accuracy is shown rather than claiming a precise venue. These check-ins are separate from opt-in foreground live sharing, described below. Removing your locations deletes your server-side check-in history and revokes live sharing; the check-in list refreshes within 10 seconds. Status updates are a separate real flow from the demo **Cerita kita** posts.
 
-Other activities (stories/photos, games, pets, battery, arrivals, surprises) remain fictional fixtures or in-memory state. Background tracking, geofences, story-photo uploads, payments, device locking, password recovery, and native push are not implemented.
+Other activities (stories/photos, games, pets, battery, arrivals, surprises) remain fictional fixtures or in-memory state. Geofences, story-photo uploads, payments, device locking, password recovery, and native status push are not implemented. Android background location is implemented separately from the web foreground flow; see [ANDROID_SETUP.md](ANDROID_SETUP.md).
 
-Your selected profile photo now also appears in the sidebar couple badge. Click either sidebar quote with its pencil icon, or use the separate pencil buttons under **Pengaturan → Kata-kata untuk ruang kita**, to open that quote's own editor. Save and **Gunakan kutipan awal** affect only the selected quote; closing cancels its edits. Profile photos (PNG/JPEG/WebP/GIF, up to about 2 MB) and these quotes persist per account in this browser's local storage. They are not uploaded or synchronized to the partner's phone, and clearing browser data removes them. Native builds retain these changes only for the current session.
+Your selected profile photo now also appears in the sidebar couple badge. Click either sidebar quote with its pencil icon, or use the separate pencil buttons under **Pengaturan → Kata-kata untuk ruang kita**, to open that quote's own editor. Save and **Gunakan kutipan awal** affect only the selected quote; closing cancels its edits. Profile photos (PNG/JPEG/WebP/GIF, up to about 2 MB) and these quotes persist per account in this browser's local storage. They are not uploaded or synchronized to the partner's phone, and clearing browser data removes them. Android stores these changes per account on the device; profile photos are resized before saving. Clearing app data removes them.
 
 ## Phone notifications and Google Maps setup
 
@@ -102,7 +102,7 @@ TypeScript and production web export are checked locally. Browser checks cover d
 
 `node scripts/auth-check.cjs` checks account creation, hashes, failed logins, origin rejection, session persistence/revocation, and rate limiting using an isolated temporary database. With the built app served on port 4173, `node scripts/accounts-browser-check.cjs` checks both real accounts in desktop/mobile browsers without printing passwords.
 
-Dependency audit: npm still reports 35 advisories in the Expo/React Native dependency tree after compatible fixes (12 moderate, 23 high). The UI is not a production deployment. Major SDK changes and forced dependency replacements were not applied.
+Dependency audit: npm still reports 38 advisories in the dependency tree (15 moderate, 23 high). The UI is not a production deployment. Major SDK changes and forced dependency replacements were not applied.
 
 `node scripts/activity-check.cjs` uses an isolated database and mocked push transport to verify two-account sharing, validation, persistence, deletion, idempotency, private recipient-only notifications, retries, expired subscriptions, logout and endpoint validation. `node scripts/activity-browser-check.cjs` starts an isolated server on port 4186 and checks desktop/mobile GPS consent, Maps links, partner status synchronization, reloads, location removal, denied permission, configuration messaging and PWA assets. No real phone or push-provider delivery is claimed by these checks.
 
@@ -114,10 +114,14 @@ Open **Lokasi & kabar → Mulai berbagi lokasi live** and grant location permiss
 
 The client watches GPS and sends at most one update every three seconds, with a fresh stationary fix requested every 15 seconds. Viewers poll the lightweight live endpoint every three seconds; latency also depends on GPS/network conditions. Elapsed time is based on the actual GPS fix; fixes older than 15 seconds are labeled as last-known positions.
 
-Sharing stops on Stop, logout, hiding/closing the page, loss of the server lease, or after one hour. Returning to the page or reloading never starts tracking automatically. Keep the browser foreground and phone unlocked; native background/locked-screen tracking is not implemented. Browser/OS permission is required on HTTPS or localhost.
+Sharing stops on Stop, logout, hiding/closing the page, loss of the server lease, or after one hour. Returning to the page or reloading never starts tracking automatically. Keep the browser foreground and phone unlocked; use the Android APK described below for opt-in background/locked-screen sharing. Browser/OS permission is required on HTTPS or localhost.
 
 SQLite and PostgreSQL store only the latest live position and a thumbnail in a session-scoped lease, separate from saved check-in history. Stop removes the row; late updates cannot recreate it. A share expires 45 seconds after the last accepted update, and viewers hide expired points even when polling fails. Expired rows are cleaned on the next live-state request. A new share on another device replaces the old one for that account. Logout or deleting shared locations also revokes live sharing. No push notifications are sent on each movement update.
 
 The map fetches visible tiles from OpenStreetMap, so an internet connection is still needed locally. Follow the [tile usage policy](https://operations.osmfoundation.org/policies/tiles/) and retain attribution; use an appropriate tile service before expanding to substantial traffic. This app does not prefetch tiles or implement an offline tile cache.
 
 Verification: `node scripts/live-location-check.cjs` exercises both storage backends using isolated SQLite and embedded PostgreSQL. After `npm run build`, `node scripts/live-location-browser-check.cjs` checks two accounts, simulated movement and avatar markers, stop, denied permission, hidden-page stop, reload, and mobile layout. These tests do not verify real phone GPS, background tracking or a live Neon/Vercel deployment. References: [watchPosition](https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/watchPosition), [Leaflet](https://leafletjs.com/reference).
+
+## Android APK and background location
+
+Follow [ANDROID_SETUP.md](ANDROID_SETUP.md) for native login, Expo/EAS linking, Google Maps Android key restrictions, APK build profiles, and the two-phone test checklist. Background sharing is explicit, time-limited, and visible through an Android foreground-service notification. Web sharing still stops when hidden. Native OS delivery, Google Maps credentials, signed APK installation, and deployed Neon/Vercel access require real-device verification.

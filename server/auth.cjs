@@ -1,3 +1,4 @@
+const { tokenFrom } = require("./session-token.cjs");
 const { DatabaseSync } = require("node:sqlite");
 const {
   randomBytes,
@@ -64,13 +65,7 @@ async function createAuth(directory, options = {}) {
   function cookie(token, age = ttl) {
     return `tresnya_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${age}${process.env.TRESNYA_SECURE_COOKIE === "1" ? "; Secure" : ""}`;
   }
-  function tokenFrom(req) {
-    return (
-      /(?:^|;\s*)tresnya_session=([A-Za-z0-9_-]+)/.exec(
-        req.headers.cookie || "",
-      )?.[1] || ""
-    );
-  }
+
   function userFrom(req) {
     const record = db
       .prepare("SELECT username FROM sessions WHERE token_hash=? AND expires>?")
@@ -136,7 +131,15 @@ async function createAuth(directory, options = {}) {
       );
       return true;
     }
-    if (pathname === "/api/auth/login" && req.method === "POST") {
+    if (
+      ["/api/auth/login", "/api/auth/native-login"].includes(pathname) &&
+      req.method === "POST"
+    ) {
+      const native = pathname === "/api/auth/native-login";
+      if (native && req.headers.origin) {
+        send(res, 403, { error: "Gunakan login web untuk browser." });
+        return true;
+      }
       const ip = req.socket.remoteAddress;
       const now = Date.now();
       for (const [key, value] of attempts)
@@ -187,14 +190,18 @@ async function createAuth(directory, options = {}) {
         now,
         hashToken(tokenFrom(req)),
       );
-      const token = randomBytes(32).toString("base64url");
+      const token =
+        (native ? "tn_" : "") + randomBytes(32).toString("base64url");
       db.prepare("INSERT INTO sessions VALUES(?,?,?)").run(
         hashToken(token),
         username,
         now + ttl * 1000,
       );
-      res.setHeader("Set-Cookie", cookie(token));
-      send(res, 200, { user: profiles.find((p) => p.username === username) });
+      if (!native) res.setHeader("Set-Cookie", cookie(token));
+      send(res, 200, {
+        user: profiles.find((p) => p.username === username),
+        ...(native ? { token, expires: now + ttl * 1000 } : {}),
+      });
       return true;
     }
     if (pathname === "/api/auth/logout" && req.method === "POST") {

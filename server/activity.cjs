@@ -39,6 +39,15 @@ function createActivity({
     CREATE TABLE IF NOT EXISTS push_devices(endpoint TEXT PRIMARY KEY, username TEXT NOT NULL, session_hash TEXT NOT NULL, subscription TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS push_queue(id INTEGER PRIMARY KEY, status_id TEXT NOT NULL, endpoint TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, next_try INTEGER NOT NULL);
   `);
+  if (
+    !db
+      .prepare("PRAGMA table_info(live_locations)")
+      .all()
+      .some((c) => c.name === "lease_ms")
+  )
+    db.exec(
+      "ALTER TABLE live_locations ADD COLUMN lease_ms INTEGER NOT NULL DEFAULT 45000",
+    );
   const live = createLiveLocation({
     async query(sql, values = []) {
       const args = [];

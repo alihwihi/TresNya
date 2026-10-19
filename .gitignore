@@ -5,3 +5,8 @@ web-build/
 *.log
 .env*
 .local/
+android/
+ios/
+credentials.json
+*.jks
+*.keystore

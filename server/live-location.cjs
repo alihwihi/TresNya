@@ -45,6 +45,12 @@ function createLiveLocation(db, prefix = "") {
       return { status: 400, data: { error: "Sesi lokasi tidak valid." } };
     if (action === "start") {
       if (
+        input.mode !== undefined &&
+        !["foreground", "background"].includes(input.mode)
+      )
+        return { status: 400, data: { error: "Mode lokasi tidak valid." } };
+      const lease = input.mode === "background" ? 120000 : LEASE;
+      if (
         input.photo != null &&
         (typeof input.photo !== "string" ||
           input.photo.length > 40000 ||
@@ -52,20 +58,29 @@ function createLiveLocation(db, prefix = "") {
       )
         return { status: 400, data: { error: "Foto penanda tidak valid." } };
       await db.query(
-        `INSERT INTO ${table}(username,session_hash,share_id,started,expires,sequence,photo)
-        VALUES($1,$2,$3,$4,$5,0,$6) ON CONFLICT(username) DO UPDATE SET
+        `INSERT INTO ${table}(username,session_hash,share_id,started,expires,sequence,photo,lease_ms)
+        VALUES($1,$2,$3,$4,$5,0,$6,$7) ON CONFLICT(username) DO UPDATE SET
         session_hash=excluded.session_hash,share_id=excluded.share_id,started=excluded.started,expires=excluded.expires,
-        sequence=0,photo=excluded.photo,latitude=NULL,longitude=NULL,accuracy=NULL,captured=NULL,updated=NULL`,
+        sequence=0,photo=excluded.photo,lease_ms=excluded.lease_ms,latitude=NULL,longitude=NULL,accuracy=NULL,captured=NULL,updated=NULL`,
         [
           username,
           sessionHash,
           input.shareId,
           now,
-          now + LEASE,
+          now + lease,
           input.photo || null,
+          lease,
         ],
       );
-      return { status: 201, data: { ok: true } };
+      return {
+        status: 201,
+        data: {
+          ok: true,
+          expires: now + lease,
+          endsAt: now + 3600000,
+          serverNow: now,
+        },
+      };
     }
     if (action === "stop") {
       await db.query(
@@ -97,16 +112,16 @@ function createLiveLocation(db, prefix = "") {
       };
     const result = await db.query(
       `UPDATE ${table} SET latitude=$1,longitude=$2,accuracy=$3,captured=$4,updated=$5,
-      expires=CASE WHEN started+3600000<$6 THEN started+3600000 ELSE $6 END,sequence=$7
+      expires=CASE WHEN started+3600000<$6+lease_ms*1.0 THEN started+3600000 ELSE $6+lease_ms*1.0 END,sequence=$7
       WHERE username=$8 AND session_hash=$9 AND share_id=$10 AND expires>$5 AND started+3600000>$5
-      AND sequence<$7 AND (captured IS NULL OR captured<=$4) RETURNING username`,
+      AND sequence<$7 AND (captured IS NULL OR captured<=$4) RETURNING username,expires,started`,
       [
         latitude,
         longitude,
         accuracy,
         captured,
         now,
-        now + LEASE,
+        now,
         sequence,
         username,
         sessionHash,
@@ -114,7 +129,15 @@ function createLiveLocation(db, prefix = "") {
       ],
     );
     return result.rows.length
-      ? { status: 200, data: { ok: true } }
+      ? {
+          status: 200,
+          data: {
+            ok: true,
+            expires: result.rows[0].expires,
+            endsAt: result.rows[0].started + 3600000,
+            serverNow: now,
+          },
+        }
       : {
           status: 409,
           data: {

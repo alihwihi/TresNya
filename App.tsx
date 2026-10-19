@@ -1,3 +1,4 @@
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { AuthGate, Account } from "./src/AuthGate";
 import { useLiveLocation } from "./src/useLiveLocation";
 import {
@@ -28,6 +29,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as ImagePicker from "expo-image-picker";
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { HeartRain } from "./src/HeartRain";
 import { Avatar, Cat, Icon, IconName, LoveArt } from "./src/art";
 import {
@@ -84,15 +86,22 @@ const moods = ["🥰", "😊", "☕", "😴", "🥺", "🤍"];
 
 export default function App() {
   return (
-    <AuthGate>
-      {(account, logout) => (
-        <TresNyaSession
-          key={account.username}
-          account={account}
-          logout={logout}
-        />
-      )}
-    </AuthGate>
+    <SafeAreaProvider>
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: colors.cream }}
+        edges={Platform.OS === "web" ? [] : ["top", "bottom"]}
+      >
+        <AuthGate>
+          {(account, logout) => (
+            <TresNyaSession
+              key={account.username}
+              account={account}
+              logout={logout}
+            />
+          )}
+        </AuthGate>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
@@ -255,10 +264,29 @@ function TresNyaSession({
       if (!result.canceled) {
         const asset = result.assets[0];
         if (profile) {
-          const uri =
-            Platform.OS === "web" && asset.base64
-              ? `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`
-              : asset.uri;
+          let uri = asset.base64
+            ? `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`
+            : asset.uri;
+          if (Platform.OS !== "web") {
+            const size = Math.min(asset.width, asset.height);
+            const processed = await manipulateAsync(
+              asset.uri,
+              [
+                {
+                  crop: {
+                    originX: (asset.width - size) / 2,
+                    originY: (asset.height - size) / 2,
+                    width: size,
+                    height: size,
+                  },
+                },
+                { resize: { width: 512, height: 512 } },
+              ],
+              { base64: true, compress: 0.75, format: SaveFormat.JPEG },
+            );
+            if (!processed.base64) throw new Error("Foto belum bisa disimpan.");
+            uri = `data:image/jpeg;base64,${processed.base64}`;
+          }
           if (
             Platform.OS === "web" &&
             !/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(uri)
@@ -270,7 +298,12 @@ function TresNyaSession({
             notify("Foto terlalu besar. Pilih foto berukuran maksimal 2 MB.");
             return;
           }
-          if (updatePersonalization({ ...personalization, profilePhoto: uri }))
+          if (
+            await updatePersonalization({
+              ...personalization,
+              profilePhoto: uri,
+            })
+          )
             notify("Foto profil diperbarui di seluruh tampilan.");
         } else setPhoto(asset.uri);
       }
@@ -278,14 +311,14 @@ function TresNyaSession({
       notify("Foto belum bisa dibuka. Coba pilih kembali.");
     }
   }
-  function updatePersonalization(next: Personalization) {
+  async function updatePersonalization(next: Personalization) {
     try {
-      savePersonalization(account.username, next);
+      await savePersonalization(account.username, next);
       setPersonalization(next);
       return true;
     } catch {
       notify(
-        "Belum tersimpan. Penyimpanan browser penuh atau tidak tersedia; coba foto yang lebih kecil atau izinkan penyimpanan.",
+        "Belum tersimpan. Penyimpanan perangkat penuh atau tidak tersedia; coba foto yang lebih kecil atau izinkan penyimpanan.",
       );
       return false;
     }
@@ -1532,14 +1565,14 @@ function TresNyaSession({
             />
             <View style={{ gap: 12 }}>
               <Button
-                onPress={() => {
+                onPress={async () => {
                   const quote = draft.trim();
                   if (!quote || quote.length > limit) {
                     setError(`Isi kutipan, maksimal ${limit} karakter.`);
                     return;
                   }
                   if (
-                    updatePersonalization({
+                    await updatePersonalization({
                       ...personalization,
                       [quoteKey]: quote,
                     })

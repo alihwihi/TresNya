@@ -1,10 +1,7 @@
 import { Platform } from "react-native";
 
-export const defaultQuotes = {
-  badgeQuote: "Ruang kecil, milik kita",
-  sidebarQuote: "Dua kota, satu cerita.\nSelalu ada kita.",
-};
-export type Personalization = typeof defaultQuotes & { profilePhoto?: string };
+import { defaultQuotes, Personalization } from "./personalization.shared";
+export { defaultQuotes, Personalization } from "./personalization.shared";
 const key = (username: string) => `tresnya:personalization:v1:${username}`;
 
 export function readPersonalization(username: string): Personalization {
@@ -42,3 +39,5 @@ export function savePersonalization(username: string, value: Personalization) {
   if (Platform.OS === "web")
     window.localStorage.setItem(key(username), JSON.stringify(value));
 }
+
+export async function loadPersonalization(_username: string) {}

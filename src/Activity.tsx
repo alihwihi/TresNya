@@ -1,3 +1,4 @@
+import { captureLocation } from "./captureLocation";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Linking, Platform, View } from "react-native";
 import { Account } from "./AuthGate";
@@ -157,6 +158,17 @@ export function useActivity(account: Account) {
 export type Activity = ReturnType<typeof useActivity>;
 
 export function NotificationSettings({ activity }: { activity: Activity }) {
+  if (Platform.OS !== "web")
+    return (
+      <View style={{ gap: 12 }}>
+        <Label>Notifikasi status pasangan</Label>
+        <Body>
+          Notifikasi status Android belum diaktifkan. Kabar tetap bisa dibaca
+          saat aplikasi dibuka. Notifikasi berbagi lokasi ditampilkan terpisah
+          selama GPS aktif.
+        </Body>
+      </View>
+    );
   return (
     <View style={{ gap: 12 }}>
       <Label>Notifikasi status pasangan</Label>
@@ -295,31 +307,7 @@ export function LocationScreen({
   }
   function capture() {
     void run("gps", async () => {
-      if (
-        Platform.OS !== "web" ||
-        !navigator.geolocation ||
-        !window.isSecureContext
-      )
-        throw new Error(
-          "Buka aplikasi web melalui HTTPS untuk membagikan lokasi.",
-        );
-      const position = await new Promise<GeolocationPosition>(
-        (resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(
-            resolve,
-            (e) =>
-              reject(
-                new Error(
-                  e.code === 1
-                    ? "Izin lokasi ditolak. Izinkan lokasi pada pengaturan browser lalu coba lagi."
-                    : e.code === 3
-                      ? "GPS terlalu lama merespons. Coba lagi di tempat terbuka."
-                      : "Lokasi belum tersedia. Periksa GPS perangkat.",
-                ),
-              ),
-            { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
-          ),
-      );
+      const position = await captureLocation();
       if (mounted.current)
         setDraft({
           latitude: position.coords.latitude,

@@ -35,7 +35,7 @@ For browser phone notifications, also add:
 | ---------------------- | ----------------------------------------------------------------- |
 | `TRESNYA_PUSH_SUBJECT` | `mailto:YOUR_REAL_EMAIL_ADDRESS` with your actual contact address |
 
-VAPID keys are generated once and stored privately in PostgreSQL. Firebase credentials are not required for this browser Web Push flow. Native APK notifications and native login are separate work and are not implemented by this deployment.
+VAPID keys are generated once and stored privately in PostgreSQL. Firebase credentials are not required for this browser Web Push flow. Native status push remains separate. Native login and Android background location are now supported by the API; see [ANDROID_SETUP.md](ANDROID_SETUP.md) for APK setup.
 
 Optional embedded Google Map: add `TRESNYA_GOOGLE_MAPS_EMBED_KEY` containing a Maps Embed API key restricted to your website's HTTP referrers and that API. Google Maps pin links already work without this key.
 
@@ -80,3 +80,7 @@ Logging out revokes that session's subscriptions. Sessions expire after seven da
 ## 6. Deploy live location
 
 Push the live-location UI and backend files together with the updated dependency lockfile, then deploy. The API creates `tresnya.live_locations` automatically. No additional environment variables are required for the OpenStreetMap live map. Test in two separate signed-in browsers or phones: start sharing explicitly and keep both pages active. The profile thumbnail is shared for that live session. Keep the phone unlocked; tracking stops when the page is hidden or closed. See the foreground live-location section in README.md for expiry and verification details.
+
+## Android native client
+
+Deploy the new `/api/auth/native-login` handler and shared session-token module with the location lease migration. Native login returns a revocable bearer token instead of a cookie; the phone keeps it in SecureStore. Browser origins and cookie rules remain enforced. The API adds `live_locations.lease_ms` automatically, retaining 45 seconds for web and using two minutes for explicit background shares. Native uploads retain the one-hour maximum and stale/order rejection. Android Maps credentials belong in EAS, not in Neon or the Vercel API. No new Vercel environment variables are needed.

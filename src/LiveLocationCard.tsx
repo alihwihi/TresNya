@@ -1,5 +1,5 @@
 import React from "react";
-import { Linking, View } from "react-native";
+import { Linking, Platform, View } from "react-native";
 import { Account } from "./AuthGate";
 import { Badge, Body, Button, Card, Title } from "./ui";
 import { LiveLocation } from "./useLiveLocation";
@@ -18,8 +18,9 @@ export function LiveLocationCard({
       <Title style={{ fontSize: 24 }}>Lokasi live kalian</Title>
       <Body>
         Bagikan posisi dan foto profilmu ke {account.partner} saat bergerak.
-        Biarkan halaman aktif. Berbagi berhenti saat halaman disembunyikan atau
-        ditutup, dan berakhir setelah satu jam.
+        {Platform.OS === "web"
+          ? "Biarkan halaman aktif. Berbagi berhenti saat halaman disembunyikan atau ditutup, dan berakhir setelah satu jam."
+          : "Dengan izinmu, berbagi tetap berjalan saat layar terkunci, maksimal satu jam. Notifikasi Android menandai GPS aktif. Paksa berhenti atau menutup aplikasi lewat daftar aplikasi dapat menghentikan berbagi."}
       </Body>
       <Badge green={live.sharing}>
         {live.sharing
@@ -75,9 +76,12 @@ export function LiveLocationCard({
         </View>
       ))}
       <Body style={{ fontSize: 11 }}>
-        Posisi diperbarui sekitar setiap 3 detik sesuai GPS dan koneksi.
-        Lingkaran menunjukkan perkiraan akurasi. Jika koneksi terputus, penanda
-        hilang maksimal 45 detik setelah kiriman terakhir.
+        {Platform.OS === "web"
+          ? "Posisi diperbarui sekitar setiap 3 detik sesuai GPS dan koneksi."
+          : "Pembaruan ditargetkan setiap 15 detik; waktu sebenarnya mengikuti GPS, koneksi, dan pengaturan baterai Android."}{" "}
+        Lingkaran menunjukkan perkiraan akurasi. Penanda yang berhenti
+        diperbarui hilang setelah sesi kedaluwarsa (45 detik untuk web, maksimal
+        2 menit untuk Android).
       </Body>
     </Card>
   );

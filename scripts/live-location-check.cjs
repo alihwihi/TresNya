@@ -203,6 +203,88 @@ const { DatabaseSync } = require("node:sqlite");
         0,
         "movement does not fill check-in history",
       );
+      // Native tokens are issued without cookies and are not accepted as browser sessions.
+      assert.equal(
+        (await call("auth/native-login", credentials[0])).status,
+        403,
+      );
+      const nativeCall = (route, data, token) =>
+        fetch(base + route, {
+          method: data ? "POST" : "GET",
+          headers: {
+            ...(data ? { "Content-Type": "application/json" } : {}),
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: data ? JSON.stringify(data) : undefined,
+        });
+      const nativeLogin = await nativeCall("auth/native-login", credentials[0]);
+      assert.equal(nativeLogin.status, 200);
+      assert.equal(nativeLogin.headers.get("set-cookie"), null);
+      const native = await nativeLogin.json();
+      assert.match(native.token, /^tn_[A-Za-z0-9_-]{43}$/);
+      assert.equal(
+        (await nativeCall("auth/me", undefined, native.token)).status,
+        200,
+      );
+      assert.equal(
+        (await call("auth/me", undefined, `tresnya_session=${native.token}`))
+          .status,
+        401,
+      );
+      assert.equal(
+        (await nativeCall("auth/me", undefined, alih.split("=")[1])).status,
+        401,
+      );
+      const nativeId = "native-test-session-0001";
+      let response = await nativeCall(
+        "activity/live/start",
+        { shareId: nativeId, mode: "background" },
+        native.token,
+      );
+      assert.equal(response.status, 201);
+      let lease = await response.json();
+      assert.equal(lease.expires - lease.serverNow, 120000);
+      assert.equal(lease.endsAt - lease.serverNow, 3600000);
+      response = await nativeCall(
+        "activity/live/update",
+        { ...point, shareId: nativeId, captured: Date.now() },
+        native.token,
+      );
+      assert.equal(response.status, 200);
+      lease = await response.json();
+      assert.equal(lease.expires - lease.serverNow, 120000);
+      assert.equal((await state(nana)).partner.latitude, point.latitude);
+      assert.equal(
+        (
+          await nativeCall(
+            "activity/live/stop",
+            { shareId: nativeId },
+            native.token,
+          )
+        ).status,
+        200,
+      );
+      assert.equal(
+        (
+          await nativeCall(
+            "activity/live/update",
+            { ...point, shareId: nativeId, captured: Date.now(), sequence: 2 },
+            native.token,
+          )
+        ).status,
+        409,
+      );
+      await nativeCall(
+        "activity/live/start",
+        { shareId: nativeId, mode: "background" },
+        native.token,
+      );
+      await nativeCall("auth/logout", {}, native.token);
+      assert.equal(
+        (await nativeCall("auth/me", undefined, native.token)).status,
+        401,
+      );
+      assert.equal((await state(nana)).partner, null);
       await start();
       await sql(`UPDATE ${prefix}sessions SET expires=0 WHERE username='alih'`);
       assert.equal(

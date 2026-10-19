@@ -1,3 +1,7 @@
+import { authRequest as request } from "./api";
+import { clearNativeSession } from "./session";
+import { stopSessionLocation } from "./locationLifecycle";
+import { loadPersonalization } from "./personalization";
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -15,33 +19,6 @@ export type Account = {
   gender: "male" | "female";
   partner: string;
 };
-const origin =
-  Platform.OS === "web" &&
-  typeof window !== "undefined" &&
-  window.location.port === "8081"
-    ? `${window.location.protocol}//${window.location.hostname}:4173`
-    : "";
-async function request(route: string, data?: object) {
-  const response = await fetch(`${origin}/api/auth/${route}`, {
-    method: data ? "POST" : "GET",
-    credentials: "include",
-    headers: data ? { "Content-Type": "application/json" } : undefined,
-    body: data ? JSON.stringify(data) : undefined,
-  }).catch(() => {
-    throw new Error(
-      "Server belum dapat dihubungi. Periksa koneksi internet lalu coba lagi.",
-    );
-  });
-  if (!response.headers.get("content-type")?.includes("application/json")) {
-    throw new Error(
-      response.status === 404
-        ? "Server login belum tersedia. Pemilik aplikasi perlu deploy API ke Vercel bersama kode terbaru."
-        : "Server tidak memberikan respons yang valid. Coba lagi atau periksa log deployment.",
-    );
-  }
-  const payload = await response.json();
-  return { response, payload };
-}
 export function AuthGate({
   children,
 }: {
@@ -58,12 +35,15 @@ export function AuthGate({
     try {
       const { response, payload } = await request("me");
       if (response.ok) {
+        await loadPersonalization(payload.user.username);
         setAccount(payload.user);
         setError("");
-      } else if (response.status === 401) setAccount(null);
-      else throw new Error(payload.error || "Server belum siap. Coba lagi.");
+      } else if (response.status === 401) {
+        await stopSessionLocation();
+        await clearNativeSession();
+        setAccount(null);
+      } else throw new Error(payload.error || "Server belum siap. Coba lagi.");
     } catch (cause) {
-      setAccount(null);
       setError(
         cause instanceof Error
           ? cause.message
@@ -95,6 +75,7 @@ export function AuthGate({
       if (!response.ok) setError(payload.error);
       else {
         setPassword("");
+        await loadPersonalization(payload.user.username);
         setAccount(payload.user);
       }
     } catch (cause) {
@@ -110,8 +91,10 @@ export function AuthGate({
   async function logout() {
     setError("");
     try {
+      await stopSessionLocation();
       const { response } = await request("logout", {});
       if (!response.ok) throw new Error();
+      await clearNativeSession();
       setAccount(null);
       setUsername("");
       setPassword("");
