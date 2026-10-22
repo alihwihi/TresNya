@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { Account } from "./AuthGate";
 import { activityRequest } from "./api";
+import { mapPhoto } from "./mapPhoto";
+import { useLivePhoto } from "./useLivePhoto";
 
+export type LocationDuration = 1 | 3 | 8;
 export type LivePoint = {
   username: string;
   shareId?: string;
@@ -12,6 +15,7 @@ export type LivePoint = {
   captured: number | null;
   updated: number | null;
   expires: number;
+  endsAt?: number;
   photo: string | null;
 };
 type Snapshot = {
@@ -43,37 +47,6 @@ async function request(route: string, data?: object, keepalive = false) {
     clearTimeout(timer);
   }
 }
-async function thumbnail(uri?: string): Promise<string | null> {
-  if (!uri) return null;
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = canvas.height = 96;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error("Foto profil belum bisa diproses."));
-        return;
-      }
-      const side = Math.min(img.width, img.height);
-      ctx.drawImage(
-        img,
-        (img.width - side) / 2,
-        (img.height - side) / 2,
-        side,
-        side,
-        0,
-        0,
-        96,
-        96,
-      );
-      resolve(canvas.toDataURL("image/jpeg", 0.75));
-    };
-    img.onerror = () =>
-      reject(new Error("Foto profil belum bisa dibuka. Pilih ulang fotomu."));
-    img.src = uri;
-  });
-}
 export function useLiveLocation(account: Account, photo?: string) {
   const [snapshot, setSnapshot] = useState<Snapshot>({
     mine: null,
@@ -88,6 +61,10 @@ export function useLiveLocation(account: Account, photo?: string) {
   const run = useRef<Run | null>(null);
   const mounted = useRef(true);
   const fetching = useRef(false);
+  const photoError = useLivePhoto(
+    sharing ? snapshot.mine?.shareId : undefined,
+    photo,
+  );
   async function refresh() {
     if (fetching.current || Platform.OS !== "web") return;
     fetching.current = true;
@@ -131,7 +108,7 @@ export function useLiveLocation(account: Account, photo?: string) {
     }
     if (mounted.current) void refresh();
   }
-  async function start() {
+  async function start(durationHours: LocationDuration = 1) {
     if (run.current) return;
     if (
       Platform.OS !== "web" ||
@@ -149,18 +126,24 @@ export function useLiveLocation(account: Account, photo?: string) {
       sending: false,
       lastSent: 0,
       leaseUntil: Date.now() + 45000,
-      endsAt: Date.now() + 3600000,
+      endsAt: Date.now() + durationHours * 3600000,
     };
     run.current = active;
     setSharing(true);
     setMessage("Meminta izin dan menunggu GPS…");
     try {
-      const avatar = await thumbnail(photo);
+      const avatar = await mapPhoto(photo);
       if (run.current !== active) return;
-      active.started = request("start", { shareId: active.id, photo: avatar });
-      await active.started;
+      const starting = request("start", {
+        shareId: active.id,
+        photo: avatar,
+        durationHours,
+      });
+      active.started = starting;
+      const lease = await starting;
       if (run.current !== active) return;
-      active.leaseUntil = Date.now() + 45000;
+      active.leaseUntil = Date.now() + lease.expires - lease.serverNow;
+      active.endsAt = Date.now() + lease.endsAt - lease.serverNow;
       const send = async () => {
         if (
           run.current !== active ||
@@ -290,7 +273,7 @@ export function useLiveLocation(account: Account, photo?: string) {
         : null,
     sharing,
     message,
-    connectionError,
+    connectionError: connectionError || photoError,
     start,
     stop,
     refresh,

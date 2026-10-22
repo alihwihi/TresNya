@@ -2,9 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, AppState, PermissionsAndroid, Platform } from "react-native";
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
-import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
+import { mapPhoto } from "./mapPhoto";
+import { useLivePhoto } from "./useLivePhoto";
 import type { Account } from "./AuthGate";
-import type { LivePoint, LiveLocation } from "./useLiveLocation";
+import type {
+  LivePoint,
+  LiveLocation,
+  LocationDuration,
+} from "./useLiveLocation";
 import { activityRequest } from "./api";
 import {
   startNativeLocation,
@@ -12,11 +17,11 @@ import {
   reconcileNativeLocation,
 } from "./nativeLocationService";
 
-function consent(partner: string) {
+function consent(partner: string, durationHours: LocationDuration) {
   return new Promise<boolean>((resolve) =>
     Alert.alert(
       "Bagikan lokasi di latar belakang?",
-      `Posisi GPS dan foto profilmu dibagikan ke ${partner} hingga satu jam, termasuk saat layar terkunci. Android menampilkan notifikasi selama berbagi. Kamu dapat menghentikannya kapan saja di halaman Lokasi. Pilih “Izinkan sepanjang waktu” pada pengaturan izin lokasi berikutnya.`,
+      `Posisi GPS dan foto profilmu dibagikan ke ${partner} hingga ${durationHours} jam, termasuk saat layar terkunci. Android menampilkan notifikasi selama berbagi. Kamu dapat menghentikannya kapan saja di halaman Lokasi. Pilih “Izinkan sepanjang waktu” pada pengaturan izin lokasi berikutnya.`,
       [
         { text: "Batal", style: "cancel", onPress: () => resolve(false) },
         { text: "Lanjutkan", onPress: () => resolve(true) },
@@ -37,6 +42,10 @@ export function useLiveLocation(
   const [message, setMessage] = useState("");
   const [connectionError, setConnectionError] = useState("");
   const [clock, setClock] = useState(Date.now());
+  const photoError = useLivePhoto(
+    sharing ? snapshot.mine?.shareId : undefined,
+    photo,
+  );
   const offset = useRef(0),
     alive = useRef(true),
     pending = useRef(false),
@@ -88,7 +97,7 @@ export function useLiveLocation(
         );
     }
   }
-  async function start() {
+  async function start(durationHours: LocationDuration = 1) {
     if (pending.current || sharing) return;
     pending.current = true;
     setMessage("Menyiapkan izin lokasi…");
@@ -101,7 +110,7 @@ export function useLiveLocation(
         throw new Error(
           "Gunakan APK TresNya, bukan Expo Go, untuk lokasi di latar belakang.",
         );
-      if (!(await consent(account.partner))) {
+      if (!(await consent(account.partner, durationHours))) {
         setMessage("Berbagi belum dimulai.");
         return;
       }
@@ -126,20 +135,12 @@ export function useLiveLocation(
         throw new Error("Aktifkan GPS ponsel lalu coba lagi.");
       if (AppState.currentState !== "active")
         throw new Error("Kembali ke TresNya dan tekan Mulai lagi.");
-      let thumbnail: string | null = null;
-      if (photo) {
-        const image = await manipulateAsync(
-          photo,
-          [{ resize: { width: 96 } }],
-          { base64: true, compress: 0.7, format: SaveFormat.JPEG },
-        );
-        if (image.base64) thumbnail = `data:image/jpeg;base64,${image.base64}`;
-      }
-      await startNativeLocation(account.username, thumbnail);
+      const thumbnail = await mapPhoto(photo);
+      await startNativeLocation(account.username, thumbnail, durationHours);
       if (alive.current) {
         setSharing(true);
         setMessage(
-          "Live aktif hingga 1 jam, termasuk saat layar terkunci. Buka halaman ini untuk menghentikan.",
+          `Live aktif hingga ${durationHours} jam, termasuk saat layar terkunci. Buka halaman ini untuk menghentikan.`,
         );
         void refresh();
       }
@@ -184,7 +185,7 @@ export function useLiveLocation(
         : null,
     sharing,
     message,
-    connectionError,
+    connectionError: connectionError || photoError,
     start,
     stop,
     refresh,

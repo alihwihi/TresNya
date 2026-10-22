@@ -1,4 +1,5 @@
 import React from "react";
+import { avatarSvg } from "./avatarSvg";
 import Svg, {
   Path,
   Circle,
@@ -7,6 +8,7 @@ import Svg, {
   G,
   Line,
   Text as SvgText,
+  SvgXml,
 } from "react-native-svg";
 
 export type IconName =
@@ -91,143 +93,9 @@ export function Avatar({
   girl?: boolean;
   size?: number;
 }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 64 64">
-      <Circle cx="32" cy="32" r="32" fill={girl ? "#ebdcd1" : "#dfe5d8"} />
-      <Path
-        d={
-          girl
-            ? "M12 58V30C12 3 52 3 52 30v28Z"
-            : "M17 34V22C17 4 49 4 49 22v12Z"
-        }
-        fill="#57453b"
-      />
-      <Path d="M10 64c0-25 44-25 44 0" fill={girl ? "#ac6c69" : "#7c8d78"} />
-      <Rect x="27" y="39" width="10" height="12" rx="4" fill="#e7ba9c" />
-      <Ellipse cx="32" cy="29" rx="14" ry="17" fill="#f0c6a9" />
-      <Path
-        d={
-          girl
-            ? "M17 28c0-21 26-23 30-2-12-3-15-10-15-10s-6 10-15 12"
-            : "M17 25c-2-21 34-19 30-1-8 1-16-4-18-6-3 6-9 7-12 7"
-        }
-        fill="#57453b"
-      />
-      <Circle cx="26" cy="30" r="1.1" fill="#57453b" />
-      <Circle cx="38" cy="30" r="1.1" fill="#57453b" />
-      <Path d="M28 37q4 3 8 0" stroke="#b07567" strokeWidth="1.3" fill="none" />
-    </Svg>
-  );
+  return <SvgXml xml={avatarSvg(girl)} width={size} height={size} />;
 }
-export function Cat({
-  size = 170,
-  species = "Kucing",
-  happy = false,
-}: {
-  size?: number;
-  species?: string;
-  happy?: boolean;
-}) {
-  const rabbit = species === "Kelinci";
-  return (
-    <Svg width={size} height={size * 0.86} viewBox="0 0 240 205">
-      <Ellipse cx="121" cy="190" rx="79" ry="10" fill="#ddcab2" opacity=".35" />
-      {rabbit ? (
-        <Circle cx="177" cy="167" r="17" fill="#f8e5c9" />
-      ) : (
-        <Path
-          d="M170 167c64 10 45-55 25-35-8 8 7 15-7 22"
-          fill="none"
-          stroke="#d5a878"
-          strokeWidth="17"
-          strokeLinecap="round"
-        />
-      )}
-      <Ellipse cx="122" cy="151" rx="54" ry="40" fill="#e8bd8c" />
-      <Ellipse cx="120" cy="155" rx="34" ry="29" fill="#f8e5c9" />
-      {rabbit ? (
-        <G fill="#e8bd8c" stroke="#c59365" strokeWidth="2">
-          <Ellipse
-            cx="83"
-            cy="44"
-            rx="15"
-            ry="41"
-            rotation="-13"
-            origin="83,44"
-          />
-          <Ellipse
-            cx="151"
-            cy="44"
-            rx="15"
-            ry="41"
-            rotation="13"
-            origin="151,44"
-          />
-        </G>
-      ) : (
-        <G fill="#e8bd8c" stroke="#c59365" strokeWidth="2">
-          <Path d="m64 91 3-59 43 31M136 61l37-28 4 58" />
-          <Path
-            d="m73 73 1-27 21 22m50 0 21-21 1 29"
-            fill="#e5a8a1"
-            stroke="none"
-          />
-        </G>
-      )}
-      {species === "Anjing" && (
-        <G fill="#b8855a">
-          <Ellipse cx="65" cy="85" rx="17" ry="34" />
-          <Ellipse cx="173" cy="85" rx="17" ry="34" />
-        </G>
-      )}
-      <Ellipse cx="119" cy="100" rx="61" ry="48" fill="#e8bd8c" />
-      {!rabbit && (
-        <Path
-          d="m108 56 5 17m12-17-2 17m14-15-5 14"
-          stroke="#c59365"
-          strokeWidth="5"
-          strokeLinecap="round"
-        />
-      )}
-      <Ellipse cx="83" cy="113" rx="11" ry="6" fill="#e5a298" />
-      <Ellipse cx="154" cy="113" rx="11" ry="6" fill="#e5a298" />
-      {happy ? (
-        <Path
-          d="m85 99 8-5 7 5m37 0 8-5 7 5"
-          stroke="#665040"
-          strokeWidth="3"
-          fill="none"
-          strokeLinecap="round"
-        />
-      ) : (
-        <G fill="#665040">
-          <Ellipse cx="93" cy="100" rx="3.5" ry="5" />
-          <Ellipse cx="145" cy="100" rx="3.5" ry="5" />
-        </G>
-      )}
-      <Path d="m113 112 6 5 6-5Z" fill="#ad7766" />
-      <Path
-        d="M119 117v4m0-1q-7 9-12 0m12 0q7 9 12 0"
-        fill="none"
-        stroke="#84604d"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <Path
-        d="m72 113-23-4m23 12-23 3m117-11 23-4m-23 12 23 3"
-        stroke="#b78d68"
-        strokeWidth="1.5"
-      />
-      <Ellipse cx="88" cy="183" rx="22" ry="11" fill="#e8bd8c" />
-      <Ellipse cx="151" cy="183" rx="22" ry="11" fill="#e8bd8c" />
-      <Path
-        d="M79 183v5m7-5v5m60-5v5m7-5v5"
-        stroke="#c59365"
-        strokeWidth="1.5"
-      />
-    </Svg>
-  );
-}
+export { PetArt } from "./PetArt";
 export function LoveArt() {
   return (
     <Svg width="100%" height="100%" viewBox="0 0 410 260">

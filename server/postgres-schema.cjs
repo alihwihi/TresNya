@@ -39,5 +39,6 @@ CREATE TABLE IF NOT EXISTS tresnya.live_locations (
   accuracy DOUBLE PRECISION,captured DOUBLE PRECISION,updated DOUBLE PRECISION
 );
 ALTER TABLE tresnya.live_locations ADD COLUMN IF NOT EXISTS lease_ms INTEGER NOT NULL DEFAULT 45000;
+ALTER TABLE tresnya.live_locations ADD COLUMN IF NOT EXISTS duration_ms INTEGER NOT NULL DEFAULT 3600000;
 `;
 module.exports = { schema };

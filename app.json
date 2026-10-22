@@ -20,6 +20,13 @@
         }
       ],
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "androidMapsConfigured": false,
+      "eas": {
+        "projectId": "05ed994e-7480-4ca0-ac80-f52ba0bf9b62"
+      }
+    },
+    "owner": "alihdrajat"
   }
 }

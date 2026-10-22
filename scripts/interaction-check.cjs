@@ -99,7 +99,7 @@ const fs = require("node:fs");
     await button("Beri makan (3)").waitFor();
     await visible("◉ 170 koin bersama");
     await button("Profil pet").click();
-    await button("Kelinci").click();
+    await button("Rubah").click();
     await page.getByRole("textbox", { name: "Nama si kecil" }).fill("Milo");
     await page
       .getByRole("textbox", { name: "Tanggal lahir (YYYY-MM-DD)" })

@@ -104,12 +104,37 @@ const { spawn } = require("node:child_process");
       pages.push(page);
     }
     const [alih, nana] = pages;
+    assert.equal(
+      await alih
+        .getByRole("radio", { name: "1 jam", exact: true })
+        .getAttribute("aria-checked"),
+      "true",
+    );
+    await alih.getByRole("radio", { name: "8 jam", exact: true }).click();
+    assert.equal(
+      await alih
+        .getByRole("radio", { name: "8 jam", exact: true })
+        .getAttribute("aria-checked"),
+      "true",
+    );
+    await nana.getByRole("radio", { name: "3 jam", exact: true }).click();
+    await nana.screenshot({
+      path: ".local/live-duration-mobile.png",
+      fullPage: true,
+    });
     const marker = (p) =>
       p.locator('.tresnya-live-marker[data-username="alih"]');
     await alih
       .getByRole("button", { name: "Mulai berbagi lokasi live", exact: true })
       .click();
     await marker(nana).waitFor({ timeout: 15000 });
+    const durationState = await nana.evaluate(async () =>
+      (await fetch("/api/activity/live/state")).json(),
+    );
+    assert.ok(
+      durationState.partner.endsAt - durationState.serverNow >
+        8 * 3600000 - 60000,
+    );
     assert.match(
       await marker(nana).locator("img").getAttribute("src"),
       /^data:image\/jpeg;base64,/,
@@ -127,10 +152,71 @@ const { spawn } = require("node:child_process");
       (await fetch("/api/activity/live/state")).json(),
     );
     assert.equal(state.partner.longitude, 107.6199);
+    const oldPhoto = await marker(nana).locator("img").getAttribute("src");
+    const ownerBefore = await alih.evaluate(async () =>
+      (await fetch("/api/activity/live/state")).json(),
+    );
+    await alih.getByRole("button", { name: "Pengaturan", exact: true }).click();
+    const newPhoto = await alih.evaluate(() => {
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 40;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#d8a24b";
+      ctx.fillRect(0, 0, 40, 40);
+      return canvas.toDataURL("image/png").split(",")[1];
+    });
+    const chooserReady = alih.waitForEvent("filechooser");
+    await alih
+      .getByRole("button", { name: "Ganti foto kamu", exact: true })
+      .click();
+    const chooser = await chooserReady;
+    await chooser.setFiles({
+      name: "test-profile.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(newPhoto, "base64"),
+    });
+    await nana.waitForFunction(
+      (previous) => {
+        const img = document.querySelector(
+          '.tresnya-live-marker[data-username="alih"] img',
+        );
+        return img && img.getAttribute("src") !== previous;
+      },
+      oldPhoto,
+      { timeout: 15000 },
+    );
+    const ownerAfter = await alih.evaluate(async () =>
+      (await fetch("/api/activity/live/state")).json(),
+    );
+    assert.equal(
+      ownerAfter.mine.shareId,
+      ownerBefore.mine.shareId,
+      "profile edit does not restart sharing",
+    );
+    assert.equal(
+      ownerAfter.mine.endsAt,
+      ownerBefore.mine.endsAt,
+      "profile edit preserves duration",
+    );
+    await alih.getByRole("button", { name: "Lokasi & kabar", exact: true }).click();
+    await alih.waitForFunction(
+      (expected) =>
+        document
+          .querySelector('.tresnya-live-marker[data-username="alih"] img')
+          ?.getAttribute("src") === expected,
+      ownerAfter.mine.photo,
+    );
     await nana
       .getByRole("button", { name: "Mulai berbagi lokasi live", exact: true })
       .click();
     await nana.locator('.tresnya-live-marker[data-username="nana"]').waitFor();
+    assert.match(
+      await nana
+        .locator('.tresnya-live-marker[data-username="nana"] img')
+        .getAttribute("src"),
+      /^data:image\/svg\+xml/,
+      "default avatar matches the app illustration",
+    );
     await nana.screenshot({
       path: ".local/live-location-mobile.png",
       fullPage: true,

@@ -1,8 +1,8 @@
-import React from "react";
-import { Linking, Platform, View } from "react-native";
+import React, { useState } from "react";
+import { Linking, Platform, Pressable, View } from "react-native";
 import { Account } from "./AuthGate";
 import { Badge, Body, Button, Card, Title } from "./ui";
-import { LiveLocation } from "./useLiveLocation";
+import { LiveLocation, LocationDuration } from "./useLiveLocation";
 import { LiveMap } from "./LiveMap";
 
 export function LiveLocationCard({
@@ -12,6 +12,8 @@ export function LiveLocationCard({
   live: LiveLocation;
   account: Account;
 }) {
+  const [duration, setDuration] = useState<LocationDuration>(1);
+  const [starting, setStarting] = useState(false);
   const points = [live.mine, live.partner].filter((p) => p !== null);
   return (
     <Card style={{ gap: 14 }}>
@@ -19,18 +21,78 @@ export function LiveLocationCard({
       <Body>
         Bagikan posisi dan foto profilmu ke {account.partner} saat bergerak.
         {Platform.OS === "web"
-          ? "Biarkan halaman aktif. Berbagi berhenti saat halaman disembunyikan atau ditutup, dan berakhir setelah satu jam."
-          : "Dengan izinmu, berbagi tetap berjalan saat layar terkunci, maksimal satu jam. Notifikasi Android menandai GPS aktif. Paksa berhenti atau menutup aplikasi lewat daftar aplikasi dapat menghentikan berbagi."}
+          ? " Biarkan halaman aktif. Berbagi berhenti saat halaman disembunyikan atau ditutup, atau durasi pilihanmu habis."
+          : " Dengan izinmu, berbagi tetap berjalan saat layar terkunci hingga durasi pilihanmu habis. Notifikasi Android menandai GPS aktif. Paksa berhenti atau menutup aplikasi lewat daftar aplikasi dapat menghentikan berbagi."}
       </Body>
       <Badge green={live.sharing}>
         {live.sharing
           ? "Berbagi live aktif"
           : "Berbagi live tidak aktif di perangkat ini"}
       </Badge>
+      {!live.sharing && (
+        <View style={{ gap: 8 }}>
+          <Body>Berapa lama ingin berbagi?</Body>
+          <View
+            accessibilityRole="radiogroup"
+            accessibilityLabel="Durasi berbagi lokasi"
+            style={{ flexDirection: "row", gap: 10 }}
+          >
+            {([1, 3, 8] as const).map((hours) => (
+              <Pressable
+                key={hours}
+                accessibilityRole="radio"
+                accessibilityLabel={`${hours} jam`}
+                aria-checked={duration === hours}
+                accessibilityState={{
+                  checked: duration === hours,
+                  disabled: starting,
+                }}
+                disabled={starting}
+                onPress={() => setDuration(hours)}
+                style={{
+                  flex: 1,
+                  minHeight: 48,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: duration === hours ? "#A16C74" : "#e5d8d1",
+                  backgroundColor: duration === hours ? "#f4e6e8" : "#fffdfa",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Body
+                  style={{
+                    color: "#80525a",
+                    fontWeight: duration === hours ? "700" : "400",
+                  }}
+                >
+                  {duration === hours ? "● " : "○ "}
+                  {hours} jam
+                </Body>
+              </Pressable>
+            ))}
+          </View>
+          <Body style={{ fontSize: 12 }}>
+            Berhenti otomatis setelah durasi habis. Kamu bisa menghentikannya
+            kapan saja.
+          </Body>
+        </View>
+      )}
+      {live.sharing && live.mine?.endsAt != null && (
+        <Body>
+          Sisa waktu berbagi:{" "}
+          {Math.max(0, Math.ceil((live.mine.endsAt - live.serverTime) / 60000))}{" "}
+          menit
+        </Body>
+      )}
       <Button
+        disabled={starting && !live.sharing}
         onPress={() => {
           if (live.sharing) void live.stop();
-          else void live.start();
+          else {
+            setStarting(true);
+            void live.start(duration).finally(() => setStarting(false));
+          }
         }}
       >
         {live.sharing ? "Hentikan berbagi live" : "Mulai berbagi lokasi live"}

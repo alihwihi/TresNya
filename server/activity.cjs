@@ -48,6 +48,15 @@ function createActivity({
     db.exec(
       "ALTER TABLE live_locations ADD COLUMN lease_ms INTEGER NOT NULL DEFAULT 45000",
     );
+  if (
+    !db
+      .prepare("PRAGMA table_info(live_locations)")
+      .all()
+      .some((c) => c.name === "duration_ms")
+  )
+    db.exec(
+      "ALTER TABLE live_locations ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 3600000",
+    );
   const live = createLiveLocation({
     async query(sql, values = []) {
       const args = [];

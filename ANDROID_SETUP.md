@@ -106,9 +106,11 @@ The development client needs Metro; the preview APK does not. Expo Go is not the
 6. Switch between Wi-Fi and mobile data. Brief interruptions should recover with a fresh GPS fix. After two minutes without an accepted update, the session expires and requires explicitly starting again.
 7. Tap Stop, then separately test logout and revoking location permission. GPS must stop and the partner's marker must disappear after the next refresh, or within two minutes if the stop request cannot reach the server.
 8. Test removing the app from Recents and Force Stop. Tracking must not be promised in either case: vendor behavior varies, and Force Stop ends it. Reopen and explicitly start a new session if it ended.
-9. Test account session expiry, another device starting a replacement share, and the one-hour sharing limit. Expired/replaced sessions must not upload again automatically.
+9. Test account session expiry, another device starting a replacement share, and each selectable sharing duration (1, 3, or 8 hours). Check the selected duration in the consent dialog and Android notification. Expired/replaced sessions must not upload again automatically.
 
-The server enforces a one-hour maximum and hides native points after at most two minutes without a successful fresh update (web remains 45 seconds). Positions older than 15 seconds are labeled as the last received position. Android task callbacks stop the service on expiry; if Android suspends callbacks, server expiry still prevents stale data being presented indefinitely. GPS accuracy is an estimate, not proof of an exact building. [Expo background-location limits](https://docs.expo.dev/versions/latest/sdk/location/)
+The server enforces the selected duration (1, 3, or 8 hours) and hides native points after at most two minutes without a successful fresh update (web remains 45 seconds). Positions older than 15 seconds are labeled as the last received position. Android task callbacks stop the service on expiry; if Android suspends callbacks, server expiry still prevents stale data being presented indefinitely. GPS accuracy is an estimate, not proof of an exact building. [Expo background-location limits](https://docs.expo.dev/versions/latest/sdk/location/)
+
+To release duration choices, deploy the backend first, then build and install the updated APK. The database migration adds a duration column with a one-hour default, preserving existing sessions and older app behavior. The installed APK does not receive this UI change from a GitHub push alone.
 
 ## Verification and limits
 

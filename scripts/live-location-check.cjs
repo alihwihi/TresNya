@@ -130,6 +130,65 @@ const { DatabaseSync } = require("node:sqlite");
       assert.equal(remote.photo, photo);
       assert.equal(remote.shareId, undefined);
       assert.equal(remote.session_hash, undefined);
+      const replacementPhoto = "data:image/jpeg;base64,/9j/BBBB";
+      assert.equal(
+        (
+          await call(
+            "activity/live/photo",
+            { shareId: id, photo: replacementPhoto },
+            nana,
+          )
+        ).status,
+        409,
+        "partner cannot edit owner photo",
+      );
+      assert.equal(
+        (
+          await call(
+            "activity/live/photo",
+            { shareId: id, photo: "https://example.com/photo.jpg" },
+            alih,
+          )
+        ).status,
+        400,
+      );
+      assert.equal(
+        (
+          await call(
+            "activity/live/photo",
+            { shareId: id, photo: replacementPhoto },
+            alih,
+          )
+        ).status,
+        200,
+      );
+      const changedPhoto = (await state(nana)).partner;
+      assert.equal(changedPhoto.photo, replacementPhoto);
+      assert.equal(
+        changedPhoto.expires,
+        remote.expires,
+        "photo change cannot renew GPS lease",
+      );
+      assert.equal(
+        changedPhoto.endsAt,
+        remote.endsAt,
+        "photo change cannot extend duration",
+      );
+      assert.equal(
+        changedPhoto.captured,
+        remote.captured,
+        "photo change does not fake fresh GPS",
+      );
+      assert.equal(
+        (await call("activity/live/photo", { shareId: id, photo: null }, alih))
+          .status,
+        200,
+      );
+      assert.equal(
+        (await state(nana)).partner.photo,
+        null,
+        "reset uses default avatar",
+      );
       assert.equal(
         (
           await call(
@@ -153,6 +212,17 @@ const { DatabaseSync } = require("node:sqlite");
       );
       await call("activity/live/stop", { shareId: id }, alih);
       assert.equal((await state(nana)).partner, null);
+      assert.equal(
+        (
+          await call(
+            "activity/live/photo",
+            { shareId: id, photo: replacementPhoto },
+            alih,
+          )
+        ).status,
+        409,
+        "late photo update cannot restart sharing",
+      );
       assert.equal(
         (await call("activity/live/update", { ...point, sequence: 3 }, alih))
           .status,
@@ -202,6 +272,74 @@ const { DatabaseSync } = require("node:sqlite");
           .length,
         0,
         "movement does not fill check-in history",
+      );
+      for (const hours of [1, 3, 8]) {
+        const response = await call(
+          "activity/live/start",
+          { shareId: id, durationHours: hours },
+          alih,
+        );
+        assert.equal(response.status, 201);
+        const lease = await response.json();
+        assert.equal(lease.endsAt - lease.serverNow, hours * 3600000);
+        assert.equal((await state(nana)).partner.endsAt, lease.endsAt);
+        // Keep a fresh lease just before the selected deadline; updates must not extend it.
+        const deadline = Date.now() + 15000;
+        await sql(
+          `UPDATE ${prefix}live_locations SET started=${deadline - hours * 3600000}`,
+        );
+        const updated = await call(
+          "activity/live/update",
+          { ...point, captured: Date.now(), durationHours: 8 },
+          alih,
+        );
+        assert.equal(
+          updated.status,
+          200,
+          `${hours}-hour session remains active until its deadline`,
+        );
+        const renewed = await updated.json();
+        assert.equal(renewed.endsAt, deadline);
+        assert.equal(
+          renewed.expires,
+          deadline,
+          "lease cannot extend selected duration",
+        );
+        await sql(
+          `UPDATE ${prefix}live_locations SET started=${Date.now() - hours * 3600000 - 1}`,
+        );
+        assert.equal(
+          (
+            await call(
+              "activity/live/update",
+              { ...point, captured: Date.now(), sequence: 2 },
+              alih,
+            )
+          ).status,
+          409,
+        );
+        assert.equal(
+          (await state(nana)).partner,
+          null,
+          "expired duration is hidden",
+        );
+      }
+      await start();
+      for (const durationHours of [0, 2, 9, -1, 1.5, "3", null]) {
+        assert.equal(
+          (
+            await call(
+              "activity/live/start",
+              { shareId: id, durationHours },
+              alih,
+            )
+          ).status,
+          400,
+        );
+      }
+      assert.ok(
+        (await state(nana)).partner,
+        "invalid duration cannot replace an active share",
       );
       // Native tokens are issued without cookies and are not accepted as browser sessions.
       assert.equal(

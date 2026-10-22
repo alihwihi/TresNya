@@ -31,7 +31,8 @@ import { StatusBar } from "expo-status-bar";
 import * as ImagePicker from "expo-image-picker";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { HeartRain } from "./src/HeartRain";
-import { Avatar, Cat, Icon, IconName, LoveArt } from "./src/art";
+import { Avatar, PetArt, Icon, IconName, LoveArt } from "./src/art";
+import { petSpecies, PetSpecies } from "./src/PetArt";
 import {
   Badge,
   Body,
@@ -171,7 +172,7 @@ function TresNyaSession({
   const [overlay, setOverlay] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [petName, setPetName] = useState("Mochi");
-  const [species, setSpecies] = useState("Kucing");
+  const [species, setSpecies] = useState<PetSpecies>("Kucing");
   const [birthday, setBirthday] = useState("2026-09-28");
   const [draftPet, setDraftPet] = useState(petName);
   const [draftSpecies, setDraftSpecies] = useState(species);
@@ -802,7 +803,7 @@ function TresNyaSession({
                 <Badge green>Lv. {Math.floor(xp / 100) + 4}</Badge>
               </View>
               <View style={{ alignItems: "center", height: 135, marginTop: 7 }}>
-                <Cat size={157} species={species} happy={happy} />
+                <PetArt size={157} species={species} happy={happy} />
               </View>
               <View style={[s.between, { marginTop: 5 }]}>
                 <Label>
@@ -1194,7 +1195,7 @@ function TresNyaSession({
               <Link onPress={openPet}>Profil pet</Link>
             </View>
             <View style={{ marginVertical: 15 }}>
-              <Cat size={250} species={species} happy={happy} />
+              <PetArt size={250} species={species} happy={happy} />
             </View>
             <Title style={{ fontSize: 31 }}>{petName}</Title>
             <Body style={{ marginTop: 4 }}>
@@ -1346,7 +1347,8 @@ function TresNyaSession({
                 Ganti foto kamu
               </Button>
               <Body style={{ fontSize: 11, marginTop: 12 }}>
-                Foto tersimpan untuk akunmu di browser ini.
+                Foto tersimpan untuk akunmu di perangkat ini dan digunakan pada
+                penanda saat berbagi lokasi live.
               </Body>
             </Card>
             <Card>
@@ -1864,19 +1866,46 @@ function TresNyaSession({
       case "adopt":
         return (
           <>
-            <View style={{ alignItems: "center" }}>
-              <Cat size={150} species={draftSpecies} />
-            </View>
-            <View style={[s.row, { marginVertical: 20, flexWrap: "wrap" }]}>
-              {["Kucing", "Anjing", "Kelinci"].map((sp) => (
-                <Button
-                  small
+            <Body>Pilih teman kecil yang ingin kalian rawat bersama.</Body>
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                justifyContent: "space-between",
+                gap: 10,
+                marginVertical: 18,
+              }}
+            >
+              {petSpecies.map((sp) => (
+                <Pressable
                   key={sp}
-                  secondary={draftSpecies !== sp}
+                  accessibilityRole="button"
+                  accessibilityLabel={sp}
+                  accessibilityState={{ selected: draftSpecies === sp }}
+                  aria-pressed={draftSpecies === sp}
                   onPress={() => setDraftSpecies(sp)}
+                  style={{
+                    width: "48%",
+                    alignItems: "center",
+                    paddingVertical: 10,
+                    borderRadius: 18,
+                    borderWidth: 1.5,
+                    borderColor: draftSpecies === sp ? accent : colors.line,
+                    backgroundColor:
+                      draftSpecies === sp ? "#f7eae6" : "#fffdfa",
+                  }}
                 >
-                  {sp}
-                </Button>
+                  <PetArt size={105} species={sp} happy={draftSpecies === sp} />
+                  <Body
+                    style={{
+                      fontWeight: "600",
+                      color: draftSpecies === sp ? accent : colors.ink,
+                    }}
+                  >
+                    {draftSpecies === sp ? "✓ " : ""}
+                    {sp}
+                  </Body>
+                </Pressable>
               ))}
             </View>
             <Field

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type * as Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { LivePoint } from "./useLiveLocation";
+import { avatarSvg } from "./avatarSvg";
 
 export function LiveMap({ points }: { points: LivePoint[] }) {
   const host = useRef<HTMLDivElement>(null);
@@ -80,13 +81,15 @@ export function LiveMap({ points }: { points: LivePoint[] }) {
       const el = document.createElement("div");
       el.style.cssText =
         "width:44px;height:44px;border:3px solid white;border-radius:50%;background:#ad7277;box-shadow:0 2px 10px #0005;display:flex;align-items:center;justify-content:center;color:white;font:bold 20px sans-serif;overflow:hidden";
-      if (p.photo) {
+      {
         const img = document.createElement("img");
-        img.src = p.photo;
+        img.src =
+          p.photo ||
+          `data:image/svg+xml;charset=utf-8,${encodeURIComponent(avatarSvg(p.username === "nana"))}`;
         img.alt = `Foto profil ${p.username === "alih" ? "Alih" : "Nana"}`;
         img.style.cssText = "width:100%;height:100%;object-fit:cover";
         el.appendChild(img);
-      } else el.textContent = p.username === "alih" ? "A" : "N";
+      }
       return L.divIcon({
         html: el,
         className: "tresnya-live-marker",

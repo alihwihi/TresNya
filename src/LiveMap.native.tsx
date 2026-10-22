@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Image, Text, View } from "react-native";
+import { Image, View } from "react-native";
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import Constants from "expo-constants";
 import type { LivePoint } from "./useLiveLocation";
 import { Body, Button } from "./ui";
+import { Avatar } from "./art";
 
 function ProfileMarker({ point }: { point: LivePoint }) {
   const marker = useRef<React.ElementRef<typeof Marker>>(null);
@@ -35,13 +36,14 @@ function ProfileMarker({ point }: { point: LivePoint }) {
       >
         {point.photo ? (
           <Image
+            key={point.photo}
             source={{ uri: point.photo }}
+            accessibilityLabel={`Foto profil ${point.username === "alih" ? "Alih" : "Nana"}`}
+            onLoad={() => marker.current?.redraw()}
             style={{ width: 42, height: 42, borderRadius: 21 }}
           />
         ) : (
-          <Text style={{ fontSize: 21, color: "#78535b" }}>
-            {point.username[0].toUpperCase()}
-          </Text>
+          <Avatar girl={point.username === "nana"} size={42} />
         )}
       </View>
     </Marker>

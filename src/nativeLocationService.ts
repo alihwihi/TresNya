@@ -3,6 +3,7 @@ import * as Location from "expo-location";
 import * as Crypto from "expo-crypto";
 import { activityRequest } from "./api";
 import { getNativeSession } from "./session";
+import type { LocationDuration } from "./useLiveLocation";
 
 export const LOCATION_TASK = "tresnya-background-location-v1";
 const KEY = "tresnya.live-run.v1";
@@ -59,7 +60,11 @@ export const stopNativeLocation = (expectedId?: string) =>
     if (expectedId && (await read())?.id !== expectedId) return true;
     return stopUnlocked();
   });
-export function startNativeLocation(username: string, photo: string | null) {
+export function startNativeLocation(
+  username: string,
+  photo: string | null,
+  durationHours: LocationDuration = 1,
+) {
   return exclusive(async () => {
     await stopUnlocked();
     const session = await getNativeSession();
@@ -70,7 +75,7 @@ export function startNativeLocation(username: string, photo: string | null) {
     let run: Run = {
       id,
       username,
-      endsAt: Date.now() + 3600000,
+      endsAt: Date.now() + durationHours * 3600000,
       leaseUntil: Date.now() + 120000,
       sequence: 0,
       lastSent: 0,
@@ -81,6 +86,7 @@ export function startNativeLocation(username: string, photo: string | null) {
         shareId: id,
         photo,
         mode: "background",
+        durationHours,
       });
       if (!Number.isFinite(result.expires) || !Number.isFinite(result.endsAt))
         throw new Error("Server perlu diperbarui untuk lokasi Android.");
@@ -97,8 +103,7 @@ export function startNativeLocation(username: string, photo: string | null) {
         deferredUpdatesInterval: 0,
         foregroundService: {
           notificationTitle: "TresNya · berbagi lokasi aktif",
-          notificationBody:
-            "Lokasi dibagikan hingga 1 jam. Buka TresNya untuk menghentikan.",
+          notificationBody: `Lokasi dibagikan hingga ${durationHours} jam. Buka TresNya untuk menghentikan.`,
           notificationColor: "#A16C74",
           killServiceOnDestroy: true,
         },

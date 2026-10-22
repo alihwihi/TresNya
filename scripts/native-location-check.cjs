@@ -42,7 +42,11 @@ const imports = {
       calls.push({ route, data });
       if (route === "live/update" && updateGate) await updateGate();
       if (fail) throw fail;
-      return { expires: now + 120000, endsAt: now + 3600000, serverNow: now };
+      return {
+        expires: now + 120000,
+        endsAt: now + (data?.durationHours || 1) * 3600000,
+        serverNow: now,
+      };
     },
   },
 };
@@ -76,6 +80,26 @@ const point = () => ({
 });
 const updates = () => calls.filter((c) => c.route === "live/update");
 (async () => {
+  for (const hours of [1, 3, 8]) {
+    const run = await service.startNativeLocation("alih", null, hours);
+    assert.equal(run.endsAt - now, hours * 3600000);
+    assert.equal(calls.at(-1).data.durationHours, hours);
+    const durable = JSON.parse(stored);
+    now = run.endsAt - 1000;
+    durable.leaseUntil = now + 120000;
+    stored = JSON.stringify(durable);
+    await service.deliverNativeLocations([point()]);
+    assert.equal(
+      running,
+      true,
+      `${hours}-hour share stays active before deadline`,
+    );
+    now += 1001;
+    await service.deliverNativeLocations([point()]);
+    assert.equal(running, false, `${hours}-hour deadline stops GPS`);
+    assert.equal(stored, null);
+  }
+  calls = [];
   await service.startNativeLocation("alih", null);
   assert.equal(running, true);
   await service.deliverNativeLocations([point()]);
